@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "455014733188",
+    "project_id": "myscheduleplanner-e22f3",
+    "storage_bucket": "myscheduleplanner-e22f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455014733188:android:916a88398cd61538a1f9d1",
+        "android_client_info": {
+          "package_name": "com.dasun.myschedule"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2d99hNE2NRiGiKobbmvgndlBfFxkYGik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
