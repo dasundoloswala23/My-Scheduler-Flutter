@@ -60,7 +60,7 @@ Play Console → Release → Setup → App signing.
 ### 3. Register them in Firebase
 
 1. https://console.firebase.google.com/project/myscheduleplanner-e22f3/settings/general
-2. Scroll to **Your apps** → the Android app (`com.dasun.myschedule`)
+2. Scroll to **Your apps** → the Android app (`com.myplanscheduler.app`)
 3. **Add fingerprint**, paste SHA-1, save. Repeat for SHA-256.
 4. Download the refreshed `google-services.json` and replace
    `android/app/google-services.json`.

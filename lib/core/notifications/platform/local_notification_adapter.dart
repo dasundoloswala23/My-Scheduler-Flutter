@@ -78,7 +78,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
       ),
       windows: const WindowsInitializationSettings(
         appName: 'My scheduler',
-        appUserModelId: 'com.myscheduler.app',
+        appUserModelId: 'com.myplanscheduler.app',
         guid: '6f2a1c90-4f1e-4a2b-9d3c-7e5b8a0c1d22',
       ),
     );

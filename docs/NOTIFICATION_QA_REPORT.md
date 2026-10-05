@@ -1,7 +1,7 @@
 # Notification QA report
 
 Date: 2026-10-05
-Build: release APK 58.2 MB, `com.dasun.myschedule`
+Build: release APK 58.2 MB, `com.myplanscheduler.app`
 
 ## How to read this
 
@@ -91,7 +91,7 @@ minutes by hand:**
    before* (or open the task and use **Add reminder**).
 3. Grant the notification permission when asked.
 4. Confirm the alarm is registered:
-   `adb shell dumpsys alarm | findstr com.dasun.myschedule`
+   `adb shell dumpsys alarm | findstr com.myplanscheduler.app`
 5. Wait. The notification should appear with **Complete**, **Snooze** and
    **Open** actions. Tapping **Open** should land on that task.
 

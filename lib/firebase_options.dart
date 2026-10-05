@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyA2d99hNE2NRiGiKobbmvgndlBfFxkYGik',
-    appId: '1:455014733188:android:916a88398cd61538a1f9d1',
+    appId: '1:455014733188:android:469e8f6c75823770a1f9d1',
     messagingSenderId: '455014733188',
     projectId: 'myscheduleplanner-e22f3',
     storageBucket: 'myscheduleplanner-e22f3.firebasestorage.app',
@@ -59,20 +59,20 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDxXIFOKFiich2Dsc06-ogPCg8qTy09hwM',
-    appId: '1:455014733188:ios:94eedd0bc0c749d2a1f9d1',
+    appId: '1:455014733188:ios:d8e53fcbff8720aaa1f9d1',
     messagingSenderId: '455014733188',
     projectId: 'myscheduleplanner-e22f3',
     storageBucket: 'myscheduleplanner-e22f3.firebasestorage.app',
-    iosBundleId: 'com.dasun.myschedule',
+    iosBundleId: 'com.myplanscheduler.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDxXIFOKFiich2Dsc06-ogPCg8qTy09hwM',
-    appId: '1:455014733188:ios:94eedd0bc0c749d2a1f9d1',
+    appId: '1:455014733188:ios:d8e53fcbff8720aaa1f9d1',
     messagingSenderId: '455014733188',
     projectId: 'myscheduleplanner-e22f3',
     storageBucket: 'myscheduleplanner-e22f3.firebasestorage.app',
-    iosBundleId: 'com.dasun.myschedule',
+    iosBundleId: 'com.myplanscheduler.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

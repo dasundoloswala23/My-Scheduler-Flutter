@@ -1,4 +1,4 @@
-package com.dasun.myschedule
+package com.myplanscheduler.app
 
 import io.flutter.embedding.android.FlutterActivity
 

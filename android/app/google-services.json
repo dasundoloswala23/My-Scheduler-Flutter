@@ -12,7 +12,12 @@
           "package_name": "com.dasun.myschedule"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "455014733188-2uk7gp7pqra73oc3h5iuseguv4lg2rlp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyA2d99hNE2NRiGiKobbmvgndlBfFxkYGik"
@@ -20,7 +25,55 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455014733188-2uk7gp7pqra73oc3h5iuseguv4lg2rlp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "455014733188-5s28lofkte9uv78brpt2oebek196l9lb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.dasun.myschedule"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455014733188:android:469e8f6c75823770a1f9d1",
+        "android_client_info": {
+          "package_name": "com.myplanscheduler.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "455014733188-2uk7gp7pqra73oc3h5iuseguv4lg2rlp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2d99hNE2NRiGiKobbmvgndlBfFxkYGik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455014733188-2uk7gp7pqra73oc3h5iuseguv4lg2rlp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "455014733188-5s28lofkte9uv78brpt2oebek196l9lb.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.dasun.myschedule"
+              }
+            }
+          ]
         }
       }
     }

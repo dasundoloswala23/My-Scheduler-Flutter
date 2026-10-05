@@ -11,7 +11,29 @@ import '../dnd/drag_core.dart';
 import '../quick_add/quick_add_sheet.dart';
 import '../task_detail/task_detail_sheet.dart';
 
-enum CalendarView { day, week, month, agenda }
+enum CalendarView { day, threeDay, week, month, agenda }
+
+extension CalendarViewX on CalendarView {
+  String get label => switch (this) {
+        CalendarView.day => 'Day',
+        CalendarView.threeDay => '3 days',
+        CalendarView.week => 'Week',
+        CalendarView.month => 'Month',
+        CalendarView.agenda => 'Agenda',
+      };
+
+  IconData get icon => switch (this) {
+        CalendarView.day => Icons.calendar_view_day,
+        CalendarView.threeDay => Icons.view_column_outlined,
+        CalendarView.week => Icons.calendar_view_week,
+        CalendarView.month => Icons.calendar_view_month,
+        CalendarView.agenda => Icons.view_agenda_outlined,
+      };
+
+  /// Views that lay tasks out on a time grid, as opposed to month and agenda.
+  bool get isTimeGrid =>
+      this == CalendarView.day || this == CalendarView.threeDay || this == CalendarView.week;
+}
 
 const double kHourHeight = 64;
 const int kSlotMinutes = 15;
@@ -38,6 +60,22 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     _gridScroll.dispose();
     super.dispose();
   }
+
+  /// How far the arrows move, in days, for the current view.
+  int get _viewSpanDays => switch (_view) {
+        CalendarView.day => 1,
+        CalendarView.threeDay => 3,
+        CalendarView.week => 7,
+        CalendarView.month => 30,
+        CalendarView.agenda => 7,
+      };
+
+  /// Three days starting at the anchor — the comfortable middle ground between
+  /// a single day and a full week on a phone.
+  List<DateTime> get _threeDays => [
+        for (var i = 0; i < 3; i++)
+          DateTime(_anchor.year, _anchor.month, _anchor.day + i),
+      ];
 
   List<DateTime> get _weekDays {
     final monday = _anchor.subtract(Duration(days: _anchor.weekday - 1));
@@ -84,7 +122,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           view: _view,
           onView: (v) => setState(() => _view = v),
           onToday: () => setState(() => _anchor = DateTime.now()),
-          onShift: (days) => setState(() => _anchor = _anchor.add(Duration(days: days))),
+          // The arrows move by whatever the current view shows, so Week jumps a
+          // week and 3 days jumps three.
+          onShift: (direction) => setState(
+            () => _anchor = _anchor.add(Duration(days: direction * _viewSpanDays)),
+          ),
         ),
         _FilterBar(
           categoryId: _filterCategoryId,
@@ -96,13 +138,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (isWide && _view != CalendarView.month)
+              if (isWide && _view.isTimeGrid)
                 SizedBox(width: 260, child: _UnscheduledPanel(tasks: unscheduled)),
               Expanded(child: _buildView(tasks)),
             ],
           ),
         ),
-        if (!isWide && _view != CalendarView.month && unscheduled.isNotEmpty)
+        if (!isWide && _view.isTimeGrid && unscheduled.isNotEmpty)
           SizedBox(height: 132, child: _UnscheduledPanel(tasks: unscheduled, horizontal: true)),
       ],
     );
@@ -110,6 +152,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   Widget _buildView(List<Task> tasks) => switch (_view) {
         CalendarView.day => _TimeGrid(days: [_anchor], tasks: tasks, scrollController: _gridScroll),
+        CalendarView.threeDay =>
+          _TimeGrid(days: _threeDays, tasks: tasks, scrollController: _gridScroll),
         CalendarView.week => _TimeGrid(days: _weekDays, tasks: tasks, scrollController: _gridScroll),
         CalendarView.month => _MonthGrid(
             anchor: _anchor,
@@ -158,24 +202,73 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton(onPressed: () => onShift(-7), icon: const Icon(Icons.chevron_left)),
+              IconButton(onPressed: () => onShift(-1), icon: const Icon(Icons.chevron_left)),
               TextButton(onPressed: onToday, child: const Text('Today')),
-              IconButton(onPressed: () => onShift(7), icon: const Icon(Icons.chevron_right)),
+              IconButton(onPressed: () => onShift(1), icon: const Icon(Icons.chevron_right)),
             ],
           ),
           const SizedBox(height: 8),
-          SegmentedButton<CalendarView>(
-            segments: const [
-              ButtonSegment(value: CalendarView.day, label: Text('Day')),
-              ButtonSegment(value: CalendarView.week, label: Text('Week')),
-              ButtonSegment(value: CalendarView.month, label: Text('Month')),
-              ButtonSegment(value: CalendarView.agenda, label: Text('Agenda')),
-            ],
-            selected: {view},
-            showSelectedIcon: false,
-            onSelectionChanged: (s) => onView(s.first),
+          // A scrolling row rather than a segmented button: five views do not
+          // fit across a phone, and a segmented button would squeeze or clip
+          // them instead of letting the row scroll.
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final option in CalendarView.values)
+                  _ViewButton(
+                    view: option,
+                    selected: option == view,
+                    onTap: () => onView(option),
+                  ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One calendar view option: Day, 3 days, Week, Month or Agenda.
+class _ViewButton extends StatelessWidget {
+  const _ViewButton({required this.view, required this.selected, required this.onTap});
+
+  final CalendarView view;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.primary : Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(20),
+            border: selected ? null : Border.all(color: Colors.black.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(view.icon, size: 15, color: selected ? Colors.white : AppColors.muted),
+              const SizedBox(width: 6),
+              Text(
+                view.label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : AppColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
