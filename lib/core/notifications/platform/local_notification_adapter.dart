@@ -21,6 +21,10 @@ class LocalNotificationAdapter implements NotificationAdapter {
   final FlutterLocalNotificationsPlugin _plugin;
   bool _ready = false;
 
+  /// Whether Android will let this app set exact alarms. Cached because it is
+  /// a platform channel call and scheduling happens in loops.
+  bool? _canScheduleExact;
+
   static const String categoryId = 'task_reminder';
 
   /// Taps and action buttons. The app listens and routes.
@@ -210,16 +214,33 @@ class LocalNotificationAdapter implements NotificationAdapter {
       body: n.body,
       scheduledDate: tz.TZDateTime.from(n.fireAt, tz.local),
       notificationDetails: _details(prefs),
-      // Inexact is used deliberately: it needs no special permission and the
-      // OS still delivers within a short window. Exact alarms are requested
-      // separately and only if the user opts in.
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      // A reminder is only useful at the minute it was set for, so use an
+      // exact alarm whenever the OS allows one. Inexact alarms are batched and
+      // can arrive minutes late, which was observed on a real device. The app
+      // declares USE_EXACT_ALARM, which Android grants to alarm-driven apps at
+      // install; where that is unavailable this falls back to inexact rather
+      // than failing to schedule at all.
+      androidScheduleMode: await _scheduleMode(),
       payload: jsonEncode({
         'taskId': n.taskId,
         'reminderId': n.reminderId,
         'scheduledFor': n.fireAt.toIso8601String(),
       }),
     );
+  }
+
+  /// Exact when permitted, inexact otherwise.
+  Future<AndroidScheduleMode> _scheduleMode() async {
+    if (defaultTargetPlatform != TargetPlatform.android || kIsWeb) {
+      return AndroidScheduleMode.exactAllowWhileIdle;
+    }
+    _canScheduleExact ??= await _plugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.canScheduleExactNotifications() ??
+        false;
+    return _canScheduleExact!
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
   NotificationDetails _details(NotificationPreferences prefs) {
