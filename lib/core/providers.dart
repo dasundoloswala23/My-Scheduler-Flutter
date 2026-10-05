@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/collections.dart';
 import '../models/task.dart';
+import 'attachment_service.dart';
 import 'repository.dart';
 
 final authStateProvider = StreamProvider<User?>((ref) => FirebaseAuth.instance.authStateChanges());
@@ -12,6 +13,11 @@ final repoProvider = Provider<Repo>((ref) {
   // Rebuilds when the signed-in user changes so queries follow the new uid.
   final user = ref.watch(authStateProvider).value;
   return Repo(uid: user?.uid);
+});
+
+final attachmentServiceProvider = Provider<AttachmentService>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  return AttachmentService(uid: user?.uid);
 });
 
 /// Tasks the user has moved but whose Firestore write has not come back yet.

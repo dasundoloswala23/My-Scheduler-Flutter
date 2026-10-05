@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Attachments live at users/{uid}/tasks/{taskId}/{attachmentId}, mirroring the
+// Firestore layout, so one ownership check covers every file a user owns.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 50 * 1024 * 1024
+                   && isAllowedType(request.resource.contentType);
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Anything outside a user's own folder is denied.
+    match /{allOther=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// Images, PDFs, documents, video and audio. Anything else is refused, so a
+// user cannot park arbitrary executables in the bucket.
+function isAllowedType(type) {
+  return type != null && (
+    type.matches('image/.*') ||
+    type.matches('video/.*') ||
+    type.matches('audio/.*') ||
+    type == 'application/pdf' ||
+    type == 'text/plain' ||
+    type == 'text/csv' ||
+    type == 'application/msword' ||
+    type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    type == 'application/vnd.ms-excel' ||
+    type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    type == 'application/vnd.ms-powerpoint' ||
+    type == 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+    type == 'application/zip'
+  );
+}

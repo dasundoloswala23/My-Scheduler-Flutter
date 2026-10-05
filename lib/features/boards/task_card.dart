@@ -94,7 +94,8 @@ class TaskCard extends ConsumerWidget {
       task.priority != TaskPriority.none ||
       task.startDateTime != null ||
       task.subtasks.isNotEmpty ||
-      task.attachments.isNotEmpty;
+      task.attachments.isNotEmpty ||
+      task.attachmentCount > 0;
 }
 
 class _CompleteCircle extends ConsumerWidget {
@@ -167,8 +168,12 @@ class _MetaRow extends StatelessWidget {
         label: '${task.doneSubtasks}/${task.subtasks.length}',
       ));
     }
-    if (task.attachments.isNotEmpty) {
-      items.add(_Meta(icon: Icons.attach_file, label: '${task.attachments.length}'));
+    // Real uploads keep a count on the task; the legacy string list is the
+    // fallback for documents written before attachments were real files.
+    final attachmentCount =
+        task.attachmentCount > 0 ? task.attachmentCount : task.attachments.length;
+    if (attachmentCount > 0) {
+      items.add(_Meta(icon: Icons.attach_file, label: '$attachmentCount'));
     }
 
     return Wrap(spacing: 14, runSpacing: 6, children: items);

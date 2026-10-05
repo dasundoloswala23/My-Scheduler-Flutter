@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/collections.dart';
 import '../models/task.dart';
+import 'attachment_service.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -63,7 +64,19 @@ class Repo {
   Future<void> updateTask(Task task) =>
       tasks.doc(task.id).update({...task.toJson(), 'version': FieldValue.increment(1)});
 
-  Future<void> deleteTask(String id) => tasks.doc(id).delete();
+  /// Deletes the task and everything hanging off it.
+  ///
+  /// Attachment metadata and the stored files go first, so deleting a task
+  /// never leaves orphaned objects in Storage paying rent.
+  Future<void> deleteTask(String id) async {
+    try {
+      await AttachmentService(db: _db, uid: _uid).deleteAllFor(id);
+    } catch (_) {
+      // A storage failure must not strand the task itself; the file clean-up
+      // can be retried, an undeletable task cannot be worked around.
+    }
+    await tasks.doc(id).delete();
+  }
 
   /// Applies a drag-and-drop move in a transaction.
   ///

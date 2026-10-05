@@ -63,6 +63,7 @@ class Task {
     this.reminderMinutesBefore,
     this.subtasks = const [],
     this.attachments = const [],
+    this.attachmentCount = 0,
     this.createdAt,
     this.updatedAt,
     this.completedAt,
@@ -84,7 +85,15 @@ class Task {
   final Recurrence recurrence;
   final int? reminderMinutesBefore;
   final List<Subtask> subtasks;
+
+  /// Legacy field: plain filenames from before real uploads existed. Kept so
+  /// older documents still render; new attachments use the subcollection and
+  /// [attachmentCount].
   final List<String> attachments;
+
+  /// Number of real attachments, denormalised so the board does not have to
+  /// query each task's subcollection to draw the paperclip badge.
+  final int attachmentCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? completedAt;
@@ -119,6 +128,7 @@ class Task {
     Object? reminderMinutesBefore = _sentinel,
     List<Subtask>? subtasks,
     List<String>? attachments,
+    int? attachmentCount,
     DateTime? updatedAt,
     Object? completedAt = _sentinel,
     int? version,
@@ -144,6 +154,7 @@ class Task {
           : reminderMinutesBefore as int?,
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
+      attachmentCount: attachmentCount ?? this.attachmentCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt == _sentinel ? this.completedAt : completedAt as DateTime?,
@@ -168,6 +179,7 @@ class Task {
         'reminderMinutesBefore': reminderMinutesBefore,
         'subtasks': subtasks.map((s) => s.toJson()).toList(),
         'attachments': attachments,
+        'attachmentCount': attachmentCount,
         'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
         'completedAt': completedAt == null ? null : Timestamp.fromDate(completedAt!),
@@ -202,6 +214,7 @@ class Task {
           .toList()
         ..sort((a, b) => a.position.compareTo(b.position)),
       attachments: ((json['attachments'] ?? const []) as List).cast<String>(),
+      attachmentCount: (json['attachmentCount'] as num?)?.toInt() ?? 0,
       createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate(),
       completedAt: (json['completedAt'] as Timestamp?)?.toDate(),

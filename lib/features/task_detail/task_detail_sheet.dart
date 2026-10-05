@@ -8,6 +8,7 @@ import '../../core/position.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import '../../models/task.dart';
+import '../attachments/attachment_section.dart';
 
 Future<void> showTaskDetailSheet(BuildContext context, Task task) {
   return showModalBottomSheet(
@@ -110,6 +111,11 @@ class TaskDetailSheet extends ConsumerWidget {
                   ]),
                   const SizedBox(height: 24),
                   _SubtaskSection(task: task),
+                  const SizedBox(height: 24),
+                  AttachmentSection(
+                    taskId: task.id,
+                    service: ref.watch(attachmentServiceProvider),
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
