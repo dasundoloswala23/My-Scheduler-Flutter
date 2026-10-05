@@ -66,34 +66,63 @@ rather than hopeful.
 | Calendar | All-day row renders | **PASS** | holiday chip visible in the all-day strip |
 | Calendar | Category and Board filters render | **PASS** | screenshot |
 | Calendar | Unscheduled drag-to-schedule panel | **PASS** | screenshot, 3 items |
-| **Reminder fires on device** | Schedule one and observe it | **NOT TESTED** | see below |
-| Notification actions (Complete / Snooze / Open) | | **NOT TESTED** | depends on the above |
-| Deep link from notification | | **NOT TESTED** | depends on the above |
+| Alarm reaches AlarmManager | `dumpsys alarm` after scheduling | **PASS** | `RTC_WAKEUP ... origWhen 1791221100000 com.myplanscheduler.app`, routed to `ScheduledNotificationReceiver`; the epoch matches the requested minute exactly |
+| **Reminder fires on device** | Schedule one and watch it arrive | **PASS** | posted 2026-10-05 22:55:54 for a 22:55:00 reminder |
+| Notification content | Title and body correct | **PASS** | shade reads "My scheduler · now / PROOF reminder / Starting now" |
+| Notification channel | Style maps to a channel | **PASS** | `channel=reminders_normal` |
+| Notification actions present | Complete / Snooze / Open | **PASS** | `actions=3`, all three visible in the shade screenshot |
+| Exact alarm after the fix | `dumpsys alarm` reports exact | **PASS** | `window=0 exactAllowReason=policy_permission` |
+| Multiple reminders registered | integration test on device | **PASS** | three offsets, three distinct ids, asserted against `pendingNotificationRequests()` |
+| Reschedule on edit | integration test on device | **PASS** | the old slot carries the new time, nothing orphaned |
+| Cancel on delete | integration test on device | **PASS** | nothing pending afterwards |
+| Snooze registers a new alarm | integration test on device | **PASS** | snooze id present and distinct |
+| Action buttons actually invoked | Tap Complete / Snooze / Open | **NOT TESTED** | they render; tapping them was not driven |
+| Deep link from a tapped notification | | **NOT TESTED** | depends on the above |
 | App killed, reminder still fires | | **NOT TESTED** | |
-| Device reboot, reminders restored | | **NOT TESTED** | the manifest is correct, but a reboot was not performed |
+| Device reboot, reminders restored | | **NOT TESTED** | the permission and boot receiver are verified present in the APK, but no reboot was performed |
 | Timezone change | | **NOT TESTED** | would disturb the phone |
 | Sound / vibration behaviour | | **NOT TESTED** | |
 
-### Why the firing test is incomplete, honestly
+### How the firing test was finally done
 
-The app is installed, signed in and working on the phone. To observe a real
-notification I have to create a task with a near-term reminder, which means
-driving the UI through `adb shell input`. The quick-add sheet's keyboard would
-not dismiss via `input keyevent`, so taps intended for the Time row kept landing
-on the title field. Rather than claim a result I did not see, it is recorded as
-NOT TESTED.
+Driving the quick-add sheet through `adb shell input` kept failing: the soft
+keyboard would not dismiss, so taps meant for the Time row landed on the title
+field, and disabling the IME made things worse by activating the voice input
+method. Two earlier runs reported false positives because the watcher matched
+the package name in unrelated log lines rather than a posted notification.
 
-**This is the single most valuable thing left to check, and it takes about two
-minutes by hand:**
+What worked was taking typing out of the loop:
 
-1. Open the app, tap **+**, give the task a title.
-2. Set **Time** to about five minutes from now, and **Reminder** to *5 minutes
-   before* (or open the task and use **Add reminder**).
-3. Grant the notification permission when asked.
-4. Confirm the alarm is registered:
-   `adb shell dumpsys alarm | findstr com.myplanscheduler.app`
-5. Wait. The notification should appear with **Complete**, **Snooze** and
-   **Open** actions. Tapping **Open** should land on that task.
+1. `tools/api-tests/make_proof_task.mjs` writes a task with a near-term
+   reminder straight into Firestore.
+2. In the app, that task's completion circle is tapped twice. Un-completing
+   re-syncs its reminders, which is what registers the alarm — one tap target,
+   no keyboard, no pickers.
+3. `dumpsys alarm` confirms the alarm and its exact epoch.
+4. `dumpsys notification` confirms the posted `NotificationRecord`, and a
+   screenshot of the shade shows it with its three action buttons.
+
+### What the run found
+
+The first delivery arrived **54 seconds late** — 22:55:54 for a 22:55:00
+reminder. The cause was `inexactAllowWhileIdle`, which lets Android batch
+alarms, even though the app already holds `USE_EXACT_ALARM` (granted at
+install). The adapter now calls `canScheduleExactNotifications()` and uses
+`exactAllowWhileIdle` where permitted, falling back to inexact otherwise.
+`dumpsys alarm` confirms the change took effect: `window=0` and
+`exactAllowReason=policy_permission`, where it previously showed a batching
+window.
+
+Measured on the same device, same method, back to back:
+
+| Build | Scheduled for | Posted at | Late by |
+|---|---|---|---|
+| inexact | 22:55:00 | 22:55:54 | **54 s** |
+| exact | 23:06:00 | 23:06:02 | **2 s** |
+
+This is the kind of defect only a real device surfaces: every automated test
+passed throughout, because the scheduling logic was correct — it was the
+delivery mode that was wrong.
 
 ## Windows
 
