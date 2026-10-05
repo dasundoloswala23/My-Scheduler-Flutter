@@ -120,9 +120,14 @@ String mimeTypeForExtension(String fileName) {
 }
 
 /// Strips characters that make for awkward storage object names.
+///
+/// A name made only of separators sanitises to nothing meaningful (`///`
+/// becomes `___`), so those fall back to a plain name rather than being shown
+/// to the user as punctuation.
 String sanitiseFileName(String name) {
   final cleaned = name.replaceAll(RegExp(r'[^\w\s.\-]'), '_').trim();
-  return cleaned.isEmpty ? 'file' : cleaned;
+  final hasRealCharacter = RegExp(r'[a-zA-Z0-9]').hasMatch(cleaned);
+  return hasRealCharacter ? cleaned : 'file';
 }
 
 /// The largest file the Storage rules will accept.

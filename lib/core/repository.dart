@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/collections.dart';
 import '../models/task.dart';
 import 'attachment_service.dart';
+import 'reminder_scheduler.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -58,11 +59,15 @@ class Repo {
   Future<String> createTask(Task task) async {
     final doc = tasks.doc();
     await doc.set({...task.toJson(), 'createdAt': FieldValue.serverTimestamp()});
+    // The new document has a real id now, so reminders can be keyed to it.
+    await const ReminderScheduler().sync(task.copyWithId(doc.id));
     return doc.id;
   }
 
-  Future<void> updateTask(Task task) =>
-      tasks.doc(task.id).update({...task.toJson(), 'version': FieldValue.increment(1)});
+  Future<void> updateTask(Task task) async {
+    await tasks.doc(task.id).update({...task.toJson(), 'version': FieldValue.increment(1)});
+    await const ReminderScheduler().sync(task);
+  }
 
   /// Deletes the task and everything hanging off it.
   ///
@@ -134,6 +139,15 @@ class Repo {
       'version': FieldValue.increment(1),
     });
 
+    // A finished task should stop nagging; an un-finished one gets its
+    // reminders back.
+    const scheduler = ReminderScheduler();
+    if (completed) {
+      await scheduler.cancelFor(task);
+    } else {
+      await scheduler.sync(task.copyWith(completed: false));
+    }
+
     // A repeating task spawns its next instance instead of just closing.
     if (completed && task.recurrence != Recurrence.none && task.startDateTime != null) {
       final next = nextOccurrence(task.startDateTime!, task.recurrence);
@@ -150,6 +164,30 @@ class Repo {
       }
     }
   }
+
+  /// Moves a repeating task to its next occurrence without completing it.
+  ///
+  /// Skipping edits the one task in place rather than spawning a new document,
+  /// which is what keeps a daily task from multiplying into hundreds of rows.
+  Future<void> skipOccurrence(Task task) async {
+    if (task.recurrence == Recurrence.none || task.startDateTime == null) return;
+    final next = nextOccurrence(task.startDateTime!, task.recurrence);
+    if (next == null) return;
+
+    final span = task.endDateTime?.difference(task.startDateTime!);
+    final updated = task.copyWith(
+      startDateTime: next,
+      endDateTime: span == null ? null : next.add(span),
+      subtasks: task.subtasks.map((s) => s.copyWith(done: false)).toList(),
+    );
+    await updateTask(updated);
+  }
+
+  /// Ends the series: the task stays, but stops repeating.
+  Future<void> stopSeries(Task task) => updateTask(task.copyWith(recurrence: Recurrence.none));
+
+  /// Pushes a task's reminder back by the snooze interval.
+  Future<void> snoozeTask(Task task) => const ReminderScheduler().snoozeTask(task);
 
   Future<void> saveList(TaskList list) => lists.doc(list.id).set(list.toJson());
   Future<void> deleteList(String id) => lists.doc(id).delete();

@@ -8,7 +8,9 @@ import '../../core/position.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import '../../models/task.dart';
+import '../../core/reminder_scheduler.dart';
 import '../attachments/attachment_section.dart';
+import 'reminder_picker.dart';
 
 Future<void> showTaskDetailSheet(BuildContext context, Task task) {
   return showModalBottomSheet(
@@ -111,6 +113,8 @@ class TaskDetailSheet extends ConsumerWidget {
                   ]),
                   const SizedBox(height: 24),
                   _SubtaskSection(task: task),
+                  const SizedBox(height: 20),
+                  _ReminderRow(task: task),
                   const SizedBox(height: 24),
                   AttachmentSection(
                     taskId: task.id,
@@ -188,6 +192,26 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
               if (sheetContext.mounted) Navigator.pop(sheetContext);
             },
           ),
+          if (task.recurrence != Recurrence.none) ...[
+            ListTile(
+              leading: const Icon(Icons.skip_next),
+              title: const Text('Skip this occurrence'),
+              subtitle: const Text('Move to the next date without completing'),
+              onTap: () async {
+                await repo.skipOccurrence(task);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.event_busy),
+              title: const Text('Stop repeating'),
+              subtitle: const Text('Keep the task, end the series'),
+              onTap: () async {
+                await repo.stopSeries(task);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              },
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.delete_outline),
             title: const Text('Delete task'),
@@ -200,6 +224,64 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
       ),
     ),
   );
+}
+
+/// Shows the task's reminders and opens the picker. Reminders need a start
+/// time to fire, so the row says so when there is none.
+class _ReminderRow extends ConsumerWidget {
+  const _ReminderRow({required this.task});
+  final Task task;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offsets = task.reminderOffsets;
+    final summary = offsets.isEmpty
+        ? 'None'
+        : offsets.map(ReminderOffset.labelFor).join(', ');
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () async {
+        final chosen = await showReminderPicker(context, selected: offsets);
+        if (chosen == null) return;
+        await ref.read(repoProvider).updateTask(task.copyWith(reminderOffsets: chosen));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.notifications_none, size: 18, color: AppColors.muted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('REMINDERS',
+                      style: TextStyle(fontSize: 10, letterSpacing: 0.8, color: AppColors.muted)),
+                  const SizedBox(height: 2),
+                  Text(summary,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  if (offsets.isNotEmpty && task.startDateTime == null)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 3),
+                      child: Text('Set a date and time for these to fire',
+                          style: TextStyle(fontSize: 11.5, color: AppColors.amber)),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EditableTitle extends ConsumerStatefulWidget {

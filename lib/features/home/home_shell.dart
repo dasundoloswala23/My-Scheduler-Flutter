@@ -9,7 +9,9 @@ import '../boards/boards_page.dart';
 import '../calendar/calendar_page.dart';
 import '../inbox/inbox_page.dart';
 import '../more/more_page.dart';
+import '../more/reminders_page.dart';
 import '../quick_add/quick_add_sheet.dart';
+import '../search/search_page.dart';
 import '../today/today_page.dart';
 
 /// The app frame: a bottom bar on phones (screenshots 1–20) and a sidebar on
@@ -76,6 +78,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 child: Column(
                   children: [
                     _TopBar(onQuickAdd: () => showQuickAddSheet(context)),
+                    const OfflineBanner(),
                     Expanded(child: _page),
                   ],
                 ),
@@ -92,6 +95,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         child: Column(
           children: [
             _TopBar(onQuickAdd: () => showQuickAddSheet(context), compact: true),
+            const OfflineBanner(),
             Expanded(child: _page),
           ],
         ),
@@ -113,6 +117,39 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   }
 }
 
+/// Tells the user when the app is working from its local cache, so an edit
+/// that has not reached the server yet is never a mystery.
+class OfflineBanner extends ConsumerWidget {
+  const OfflineBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offline = ref.watch(isOfflineProvider).value ?? false;
+    if (!offline) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      color: AppColors.amber.withValues(alpha: 0.15),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: const Row(
+        children: [
+          Icon(Icons.cloud_off, size: 16, color: AppColors.amber),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Offline. Your changes are saved here and will sync when you reconnect.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.amber),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _openSearch(BuildContext context) =>
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchPage()));
+
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.onQuickAdd, this.compact = false});
 
@@ -128,19 +165,23 @@ class _TopBar extends StatelessWidget {
           Expanded(
             child: compact
                 ? const SizedBox.shrink()
-                : Container(
-                    height: 42,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardTheme.color,
-                      borderRadius: BorderRadius.circular(12),
+                : InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _openSearch(context),
+                    child: Container(
+                      height: 42,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.search, size: 18, color: AppColors.muted),
+                        SizedBox(width: 10),
+                        Text('Search tasks, boards, notes…',
+                            style: TextStyle(color: AppColors.muted, fontSize: 13.5)),
+                      ]),
                     ),
-                    child: const Row(children: [
-                      Icon(Icons.search, size: 18, color: AppColors.muted),
-                      SizedBox(width: 10),
-                      Text('Search tasks, boards, notes…',
-                          style: TextStyle(color: AppColors.muted, fontSize: 13.5)),
-                    ]),
                   ),
           ),
           if (!compact) ...[
@@ -157,11 +198,16 @@ class _TopBar extends StatelessWidget {
             ),
           ],
           const SizedBox(width: 8),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.search), tooltip: 'Search'),
           IconButton(
-            onPressed: () {},
+            onPressed: () => _openSearch(context),
+            icon: const Icon(Icons.search),
+            tooltip: 'Search',
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const RemindersPage())),
             icon: const Icon(Icons.notifications_none),
-            tooltip: 'Notifications',
+            tooltip: 'Reminders',
           ),
         ],
       ),

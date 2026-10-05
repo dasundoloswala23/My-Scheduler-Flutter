@@ -61,6 +61,7 @@ class Task {
     this.endDateTime,
     this.recurrence = Recurrence.none,
     this.reminderMinutesBefore,
+    this.reminderOffsets = const [],
     this.subtasks = const [],
     this.attachments = const [],
     this.attachmentCount = 0,
@@ -84,6 +85,11 @@ class Task {
   final DateTime? endDateTime;
   final Recurrence recurrence;
   final int? reminderMinutesBefore;
+
+  /// Minutes before [startDateTime] to fire a reminder. A task can have
+  /// several; 0 means at the start time itself.
+  final List<int> reminderOffsets;
+
   final List<Subtask> subtasks;
 
   /// Legacy field: plain filenames from before real uploads existed. Kept so
@@ -126,6 +132,7 @@ class Task {
     Object? endDateTime = _sentinel,
     Recurrence? recurrence,
     Object? reminderMinutesBefore = _sentinel,
+    List<int>? reminderOffsets,
     List<Subtask>? subtasks,
     List<String>? attachments,
     int? attachmentCount,
@@ -152,6 +159,7 @@ class Task {
       reminderMinutesBefore: reminderMinutesBefore == _sentinel
           ? this.reminderMinutesBefore
           : reminderMinutesBefore as int?,
+      reminderOffsets: reminderOffsets ?? this.reminderOffsets,
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
       attachmentCount: attachmentCount ?? this.attachmentCount,
@@ -161,6 +169,33 @@ class Task {
       version: version ?? this.version,
     );
   }
+
+  /// The same task under a different id, used right after a create when the
+  /// Firestore id is finally known.
+  Task copyWithId(String newId) => Task(
+        id: newId,
+        title: title,
+        description: description,
+        boardId: boardId,
+        listId: listId,
+        categoryId: categoryId,
+        parentTaskId: parentTaskId,
+        position: position,
+        completed: completed,
+        priority: priority,
+        startDateTime: startDateTime,
+        endDateTime: endDateTime,
+        recurrence: recurrence,
+        reminderMinutesBefore: reminderMinutesBefore,
+        reminderOffsets: reminderOffsets,
+        subtasks: subtasks,
+        attachments: attachments,
+        attachmentCount: attachmentCount,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        completedAt: completedAt,
+        version: version,
+      );
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -177,6 +212,7 @@ class Task {
         'hasSchedule': hasSchedule,
         'recurrence': recurrence.name,
         'reminderMinutesBefore': reminderMinutesBefore,
+        'reminderOffsets': reminderOffsets,
         'subtasks': subtasks.map((s) => s.toJson()).toList(),
         'attachments': attachments,
         'attachmentCount': attachmentCount,
@@ -209,6 +245,9 @@ class Task {
         orElse: () => Recurrence.none,
       ),
       reminderMinutesBefore: (json['reminderMinutesBefore'] as num?)?.toInt(),
+      reminderOffsets: ((json['reminderOffsets'] ?? const []) as List)
+          .map((e) => (e as num).toInt())
+          .toList(),
       subtasks: ((json['subtasks'] ?? const []) as List)
           .map((e) => Subtask.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList()

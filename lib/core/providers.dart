@@ -36,6 +36,13 @@ final taskOverridesProvider =
 
 final _serverTasksProvider = StreamProvider<List<Task>>((ref) => ref.watch(repoProvider).watchTasks());
 
+/// True while Firestore is serving from its local cache, which is how the app
+/// knows it is offline. Edits still work; they queue and replay on reconnect.
+final isOfflineProvider = StreamProvider<bool>((ref) {
+  final repo = ref.watch(repoProvider);
+  return repo.tasks.snapshots().map((s) => s.metadata.isFromCache);
+});
+
 final tasksProvider = Provider<AsyncValue<List<Task>>>((ref) {
   final overrides = ref.watch(taskOverridesProvider);
   return ref.watch(_serverTasksProvider).whenData((tasks) {
