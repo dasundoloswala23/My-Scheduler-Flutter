@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/collections.dart';
 import '../models/task.dart';
 import 'attachment_service.dart';
-import 'reminder_scheduler.dart';
+import 'notifications/models/notification_preferences.dart';
+import 'notifications/platform/local_notification_adapter.dart';
+import 'notifications/services/notification_service.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -56,17 +58,43 @@ class Repo {
 
   // ----------------------------------------------------------------- writes
 
+  /// Notification work goes through one service so scheduling rules live in a
+  /// single, tested place rather than being scattered through the repository.
+  NotificationService get _notifications =>
+      NotificationService(adapter: LocalNotificationAdapter());
+
+  NotificationPreferences _preferences = const NotificationPreferences();
+
+  /// The repository schedules against the user's current preferences; the UI
+  /// pushes them in whenever they change.
+  set notificationPreferences(NotificationPreferences value) => _preferences = value;
+
   Future<String> createTask(Task task) async {
     final doc = tasks.doc();
     await doc.set({...task.toJson(), 'createdAt': FieldValue.serverTimestamp()});
+
     // The new document has a real id now, so reminders can be keyed to it.
-    await const ReminderScheduler().sync(task.copyWithId(doc.id));
+    final saved = task.copyWithId(doc.id);
+    await _notifications.sync(
+      task: saved,
+      reminders: saved.effectiveReminders,
+      preferences: _preferences,
+    );
     return doc.id;
   }
 
-  Future<void> updateTask(Task task) async {
+  /// [previous] is the task as it was before the edit. Passing it lets the
+  /// service cancel alerts for reminders that have just been removed or had
+  /// their offset changed, which is what prevents a stale notification after
+  /// the task's time is moved.
+  Future<void> updateTask(Task task, {Task? previous}) async {
     await tasks.doc(task.id).update({...task.toJson(), 'version': FieldValue.increment(1)});
-    await const ReminderScheduler().sync(task);
+    await _notifications.sync(
+      task: task,
+      reminders: task.effectiveReminders,
+      previousReminders: previous?.effectiveReminders ?? const [],
+      preferences: _preferences,
+    );
   }
 
   /// Deletes the task and everything hanging off it.
@@ -74,6 +102,19 @@ class Repo {
   /// Attachment metadata and the stored files go first, so deleting a task
   /// never leaves orphaned objects in Storage paying rent.
   Future<void> deleteTask(String id) async {
+    // Cancel the alerts first, while the task is still readable. Otherwise a
+    // deleted task can still fire a reminder for something that no longer
+    // exists, and nothing is left that knows which ids to cancel.
+    try {
+      final snap = await tasks.doc(id).get();
+      if (snap.exists) {
+        final task = Task.fromDoc(snap);
+        await _notifications.cancelForTask(task, task.effectiveReminders);
+      }
+    } catch (_) {
+      // Best effort: a scheduling failure must not block the delete.
+    }
+
     try {
       await AttachmentService(db: _db, uid: _uid).deleteAllFor(id);
     } catch (_) {
@@ -141,11 +182,15 @@ class Repo {
 
     // A finished task should stop nagging; an un-finished one gets its
     // reminders back.
-    const scheduler = ReminderScheduler();
     if (completed) {
-      await scheduler.cancelFor(task);
+      await _notifications.cancelForTask(task, task.effectiveReminders);
     } else {
-      await scheduler.sync(task.copyWith(completed: false));
+      final revived = task.copyWith(completed: false);
+      await _notifications.sync(
+        task: revived,
+        reminders: revived.effectiveReminders,
+        preferences: _preferences,
+      );
     }
 
     // A repeating task spawns its next instance instead of just closing.
@@ -186,8 +231,25 @@ class Repo {
   /// Ends the series: the task stays, but stops repeating.
   Future<void> stopSeries(Task task) => updateTask(task.copyWith(recurrence: Recurrence.none));
 
-  /// Pushes a task's reminder back by the snooze interval.
-  Future<void> snoozeTask(Task task) => const ReminderScheduler().snoozeTask(task);
+  /// Pushes a task's reminders back by [minutes].
+  ///
+  /// Snoozes the reminder the notification came from when it is known, so a
+  /// task with several reminders only moves the one that just fired.
+  Future<DateTime?> snoozeTask(Task task, {int minutes = 10, String? reminderId}) async {
+    final reminders = task.effectiveReminders;
+    if (reminders.isEmpty) return null;
+
+    final reminder = reminders.firstWhere(
+      (r) => r.id == reminderId,
+      orElse: () => reminders.first,
+    );
+    return _notifications.snooze(
+      task: task,
+      reminder: reminder,
+      minutes: minutes,
+      preferences: _preferences,
+    );
+  }
 
   Future<void> saveList(TaskList list) => lists.doc(list.id).set(list.toJson());
   Future<void> deleteList(String id) => lists.doc(id).delete();

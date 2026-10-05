@@ -5,6 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/collections.dart';
 import '../models/task.dart';
 import 'attachment_service.dart';
+import 'notifications/models/notification_preferences.dart';
+import 'notifications/platform/local_notification_adapter.dart';
+import 'notifications/platform/notification_adapter.dart';
+import 'notifications/services/notification_service.dart';
+import 'notifications/services/preferences_service.dart';
 import 'repository.dart';
 
 final authStateProvider = StreamProvider<User?>((ref) => FirebaseAuth.instance.authStateChanges());
@@ -18,6 +23,31 @@ final repoProvider = Provider<Repo>((ref) {
 final attachmentServiceProvider = Provider<AttachmentService>((ref) {
   final user = ref.watch(authStateProvider).value;
   return AttachmentService(uid: user?.uid);
+});
+
+final notificationAdapterProvider =
+    Provider<NotificationAdapter>((ref) => LocalNotificationAdapter());
+
+final notificationServiceProvider = Provider<NotificationService>(
+  (ref) => NotificationService(adapter: ref.watch(notificationAdapterProvider)),
+);
+
+final notificationPreferencesServiceProvider = Provider<NotificationPreferencesService>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  return NotificationPreferencesService(uid: user?.uid ?? '_anon');
+});
+
+/// The user's notification preferences, streamed from their user document.
+///
+/// The repository schedules against these, so a change here takes effect on the
+/// next task write without the UI having to pass them around.
+final notificationPreferencesProvider = StreamProvider<NotificationPreferences>((ref) {
+  final service = ref.watch(notificationPreferencesServiceProvider);
+  final repo = ref.watch(repoProvider);
+  return service.watch().map((prefs) {
+    repo.notificationPreferences = prefs;
+    return prefs;
+  });
 });
 
 /// Tasks the user has moved but whose Firestore write has not come back yet.
@@ -63,6 +93,30 @@ final remindersProvider =
 final holidaysProvider = StreamProvider<List<Holiday>>((ref) => ref.watch(repoProvider).watchHolidays());
 final focusSessionsProvider =
     StreamProvider<List<FocusSession>>((ref) => ref.watch(repoProvider).watchFocusSessions());
+
+/// Which bottom-nav tab is showing. Held in a provider so a screen can send
+/// the user elsewhere — the week strip on Today opens the Calendar tab.
+class HomeTabController extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void go(int index) => state = index;
+}
+
+final homeTabProvider = NotifierProvider<HomeTabController, int>(HomeTabController.new);
+
+/// The day the Calendar should open on, set when another screen sends the user
+/// there for a particular date.
+class CalendarFocusController extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void focus(DateTime day) => state = day;
+  void clear() => state = null;
+}
+
+final calendarFocusProvider =
+    NotifierProvider<CalendarFocusController, DateTime?>(CalendarFocusController.new);
 
 class ThemeModeController extends Notifier<ThemeMode> {
   @override

@@ -95,7 +95,8 @@ class TaskCard extends ConsumerWidget {
       task.startDateTime != null ||
       task.subtasks.isNotEmpty ||
       task.attachments.isNotEmpty ||
-      task.attachmentCount > 0;
+      task.attachmentCount > 0 ||
+      task.effectiveReminders.isNotEmpty;
 }
 
 class _CompleteCircle extends ConsumerWidget {
@@ -156,10 +157,35 @@ class _MetaRow extends StatelessWidget {
       };
       items.add(_Meta(icon: Icons.flag_outlined, label: task.priority.label, color: color));
     }
+    // Schedule and reminders are shown on the card, so a board task reads the
+    // same way whether you meet it here or on the calendar.
     if (task.startDateTime != null) {
       items.add(_Meta(
         icon: Icons.calendar_today_outlined,
         label: DateFormat('MMM d').format(task.startDateTime!),
+      ));
+
+      if (task.isAllDay) {
+        items.add(const _Meta(icon: Icons.schedule, label: 'All day'));
+      } else {
+        final start = DateFormat('h:mm a').format(task.startDateTime!);
+        final end = task.endDateTime == null
+            ? null
+            : DateFormat('h:mm a').format(task.endDateTime!);
+        items.add(_Meta(
+          icon: Icons.schedule,
+          label: end == null ? start : '$start – $end',
+        ));
+      }
+    }
+
+    final reminders = task.effectiveReminders.where((r) => r.enabled).toList();
+    if (reminders.isNotEmpty) {
+      items.add(_Meta(
+        icon: Icons.notifications_none,
+        label: reminders.length == 1
+            ? reminders.single.label
+            : '${reminders.length} reminders',
       ));
     }
     if (task.subtasks.isNotEmpty) {

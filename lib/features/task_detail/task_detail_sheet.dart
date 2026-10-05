@@ -6,9 +6,11 @@ import 'package:uuid/uuid.dart';
 import '../../app/theme.dart';
 import '../../core/position.dart';
 import '../../core/providers.dart';
-import '../../models/collections.dart';
+// `collections.dart` also declares a Reminder, for the standalone reminders
+// list. This screen means the task-attached kind, so the other is hidden.
+import '../../core/notifications/models/reminder.dart';
+import '../../models/collections.dart' hide Reminder;
 import '../../models/task.dart';
-import '../../core/reminder_scheduler.dart';
 import '../attachments/attachment_section.dart';
 import 'reminder_picker.dart';
 
@@ -192,6 +194,17 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
               if (sheetContext.mounted) Navigator.pop(sheetContext);
             },
           ),
+          if (task.startDateTime != null)
+            SwitchListTile(
+              secondary: const Icon(Icons.today_outlined),
+              title: const Text('All day'),
+              subtitle: const Text('Keep the date, drop the time'),
+              value: task.isAllDay,
+              onChanged: (on) async {
+                await repo.updateTask(task.copyWith(isAllDay: on), previous: task);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              },
+            ),
           if (task.recurrence != Recurrence.none) ...[
             ListTile(
               leading: const Icon(Icons.skip_next),
@@ -226,60 +239,136 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
   );
 }
 
-/// Shows the task's reminders and opens the picker. Reminders need a start
-/// time to fire, so the row says so when there is none.
+/// The task's reminders, each with Edit and Delete, plus "Add reminder".
+///
+/// A task can carry as many as the user wants; each one is independent and can
+/// be switched off without being lost.
 class _ReminderRow extends ConsumerWidget {
   const _ReminderRow({required this.task});
   final Task task;
 
+  Future<void> _save(WidgetRef ref, List<Reminder> reminders) =>
+      ref.read(repoProvider).updateTask(
+            task.copyWith(reminders: reminders, reminderOffsets: const []),
+            previous: task,
+          );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final offsets = task.reminderOffsets;
-    final summary = offsets.isEmpty
-        ? 'None'
-        : offsets.map(ReminderOffset.labelFor).join(', ');
+    final reminders = task.effectiveReminders;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () async {
-        final chosen = await showReminderPicker(context, selected: offsets);
-        if (chosen == null) return;
-        await ref.read(repoProvider).updateTask(task.copyWith(reminderOffsets: chosen));
-      },
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            const Icon(Icons.notifications_none, size: 18, color: AppColors.muted),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            Text('Reminders',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            if (reminders.isNotEmpty)
+              Text('${reminders.length}',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        if (reminders.isEmpty)
+          const Text('No reminders yet.',
+              style: TextStyle(color: AppColors.muted, fontSize: 13))
+        else
+          for (final reminder in reminders)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
                 children: [
-                  const Text('REMINDERS',
-                      style: TextStyle(fontSize: 10, letterSpacing: 0.8, color: AppColors.muted)),
-                  const SizedBox(height: 2),
-                  Text(summary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  if (offsets.isNotEmpty && task.startDateTime == null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 3),
-                      child: Text('Set a date and time for these to fire',
-                          style: TextStyle(fontSize: 11.5, color: AppColors.amber)),
+                  Icon(
+                    reminder.enabled ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+                    size: 18,
+                    color: reminder.enabled ? AppColors.primary : AppColors.muted,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      reminder.label,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        color: reminder.enabled ? null : AppColors.muted,
+                      ),
                     ),
+                  ),
+                  Switch(
+                    value: reminder.enabled,
+                    onChanged: (on) => _save(
+                      ref,
+                      [
+                        for (final r in reminders)
+                          r.id == reminder.id ? r.copyWith(enabled: on) : r,
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Edit',
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    onPressed: () async {
+                      final edited = await showReminderEditor(
+                        context,
+                        taskId: task.id,
+                        existing: reminder,
+                      );
+                      if (edited == null) return;
+                      await _save(ref, [
+                        for (final r in reminders) r.id == edited.id ? edited : r,
+                      ]);
+                    },
+                  ),
+                  IconButton(
+                    tooltip: 'Delete',
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    onPressed: () =>
+                        _save(ref, reminders.where((r) => r.id != reminder.id).toList()),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
-          ],
+
+        if (reminders.isNotEmpty && task.startDateTime == null)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text('Set a date and time for these to fire',
+                style: TextStyle(fontSize: 11.5, color: AppColors.amber)),
+          ),
+
+        TextButton.icon(
+          onPressed: () async {
+            // Permission is requested here, when the first reminder is added.
+            if (reminders.isEmpty && !await ensureNotificationPermission(context)) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Reminders are saved, but will not appear until '
+                        'notifications are allowed.'),
+                  ),
+                );
+              }
+            }
+            if (!context.mounted) return;
+            final added = await showReminderEditor(context, taskId: task.id);
+            if (added == null) return;
+            await _save(ref, [...reminders, added]);
+          },
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('Add reminder'),
         ),
-      ),
+      ],
     );
   }
 }

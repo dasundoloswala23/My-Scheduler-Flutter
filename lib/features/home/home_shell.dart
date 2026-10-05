@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
-import '../../core/notifications.dart';
+import '../../core/notifications/platform/local_notification_adapter.dart';
 import '../../core/providers.dart';
 import '../boards/boards_page.dart';
 import '../calendar/calendar_page.dart';
@@ -24,7 +24,10 @@ class HomeShell extends ConsumerStatefulWidget {
 }
 
 class _HomeShellState extends ConsumerState<HomeShell> {
-  int _index = 0;
+  // The selected tab lives in a provider so other screens can navigate here,
+  // such as the week strip on Today opening the Calendar.
+  int get _index => ref.watch(homeTabProvider);
+  void _setIndex(int i) => ref.read(homeTabProvider.notifier).go(i);
 
   static const _destinations = [
     (label: 'Today', icon: Icons.home_outlined, selected: Icons.home),
@@ -40,7 +43,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     // Seed the default board, lists and categories on first sign-in.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(repoProvider).ensureBootstrap();
-      await Notifications.init();
+      await LocalNotificationAdapter().initialise();
     });
   }
 
@@ -70,7 +73,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           children: [
             _Sidebar(
               index: _index,
-              onSelect: (i) => setState(() => _index = i),
+              onSelect: _setIndex,
             ),
             const VerticalDivider(width: 1),
             Expanded(
@@ -103,7 +106,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       floatingActionButton: fab,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: _setIndex,
         destinations: [
           for (final d in _destinations)
             NavigationDestination(

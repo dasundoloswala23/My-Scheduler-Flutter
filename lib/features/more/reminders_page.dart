@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../app/theme.dart';
-import '../../core/notifications.dart';
+import '../../core/notifications/models/notification_preferences.dart';
+import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../../core/notifications/scheduling/reminder_calculator.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import 'more_page.dart';
@@ -37,7 +39,7 @@ class RemindersPage extends ConsumerWidget {
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
               children: [
-                if (!Notifications.supported)
+                if (!LocalNotificationAdapter().supportsScheduling)
                   const Padding(
                     padding: EdgeInsets.all(12),
                     child: Text(
@@ -60,7 +62,7 @@ class RemindersPage extends ConsumerWidget {
                                 notificationId: r.notificationId,
                               ));
                           if (!r.done && r.notificationId != null) {
-                            await Notifications.cancel(r.notificationId!);
+                            await LocalNotificationAdapter().cancel(r.notificationId!);
                           }
                         },
                         child: Icon(
@@ -79,7 +81,9 @@ class RemindersPage extends ConsumerWidget {
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, size: 20),
                         onPressed: () async {
-                          if (r.notificationId != null) await Notifications.cancel(r.notificationId!);
+                          if (r.notificationId != null) {
+                            await LocalNotificationAdapter().cancel(r.notificationId!);
+                          }
                           await ref.read(repoProvider).deleteReminder(r.id);
                         },
                       ),
@@ -111,12 +115,19 @@ class RemindersPage extends ConsumerWidget {
     await ref.read(repoProvider).addReminder(
           Reminder(id: 'new', title: title, remindAt: remindAt, notificationId: notificationId),
         );
-    await Notifications.requestPermissions();
-    await Notifications.schedule(
-      id: notificationId,
-      title: title,
-      body: 'Reminder from My scheduler',
-      when: remindAt,
+    final adapter = LocalNotificationAdapter();
+    await adapter.requestPermission();
+    await adapter.schedule(
+      PlannedNotification(
+        notificationId: notificationId,
+        reminderId: 'standalone',
+        taskId: '',
+        title: title,
+        body: 'Reminder from My scheduler',
+        fireAt: remindAt,
+        style: NotificationStyle.normal,
+      ),
+      const NotificationPreferences(),
     );
   }
 }

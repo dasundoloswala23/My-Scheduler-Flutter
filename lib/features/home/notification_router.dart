@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/notifications.dart';
+import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../../core/notifications/platform/notification_adapter.dart';
 import '../../core/providers.dart';
 import '../../models/task.dart';
 import '../task_detail/task_detail_sheet.dart';
@@ -30,13 +31,13 @@ class _NotificationRouterState extends ConsumerState<NotificationRouter> {
   @override
   void initState() {
     super.initState();
-    _subscription = Notifications.events.listen(_handle);
+    _subscription = LocalNotificationAdapter.events.listen(_handle);
 
     // A notification that launched the app is replayed once there is a UI.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final launch = Notifications.launchEvent;
+      final launch = LocalNotificationAdapter.launchEvent;
       if (launch != null) {
-        Notifications.launchEvent = null;
+        LocalNotificationAdapter.launchEvent = null;
         _handle(launch);
       }
     });
@@ -64,10 +65,11 @@ class _NotificationRouterState extends ConsumerState<NotificationRouter> {
           );
         }
       case NotificationAction.snooze:
-        await repo.snoozeTask(task);
+        final minutes = event.snoozeMinutes ?? 10;
+        await repo.snoozeTask(task, minutes: minutes, reminderId: event.reminderId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Reminder snoozed for 10 minutes')),
+            SnackBar(content: Text('Reminder snoozed for $minutes minutes')),
           );
         }
       case NotificationAction.open:

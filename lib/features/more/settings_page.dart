@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
-import '../../core/notifications.dart';
+import '../../core/notifications/platform/local_notification_adapter.dart';
 import '../../core/providers.dart';
 import 'more_page.dart';
+import 'notification_settings_page.dart';
 
 /// Screenshot 36: account, appearance and notification preferences.
 class SettingsPage extends ConsumerWidget {
@@ -80,13 +81,15 @@ class SettingsPage extends ConsumerWidget {
                   leading: const Icon(Icons.notifications_active_outlined),
                   title: const Text('Allow notifications', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: Text(
-                    Notifications.supported
-                        ? 'Used for reminders and task alerts'
+                    LocalNotificationAdapter().supportsScheduling
+                        ? 'Reminders, quiet hours, sound and daily summary'
                         : 'Not available on this platform',
                     style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: Notifications.supported ? Notifications.requestPermissions : null,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotificationSettingsPage()),
+                  ),
                 ),
               ],
             ),

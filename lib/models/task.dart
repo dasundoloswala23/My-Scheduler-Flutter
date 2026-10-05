@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../core/notifications/models/reminder.dart';
+
 enum TaskPriority { none, low, medium, high }
 
 extension TaskPriorityX on TaskPriority {
@@ -60,8 +62,10 @@ class Task {
     this.startDateTime,
     this.endDateTime,
     this.recurrence = Recurrence.none,
+    this.isAllDay = false,
     this.reminderMinutesBefore,
     this.reminderOffsets = const [],
+    this.reminders = const [],
     this.subtasks = const [],
     this.attachments = const [],
     this.attachmentCount = 0,
@@ -84,11 +88,38 @@ class Task {
   final DateTime? startDateTime;
   final DateTime? endDateTime;
   final Recurrence recurrence;
+
+  /// A task given a date but no particular time. It still belongs on the
+  /// calendar, in the all-day row rather than at a position in the grid.
+  final bool isAllDay;
   final int? reminderMinutesBefore;
 
   /// Minutes before [startDateTime] to fire a reminder. A task can have
   /// several; 0 means at the start time itself.
   final List<int> reminderOffsets;
+
+  /// Reminders with their own ids, types and enabled flags. This is the
+  /// current model; [reminderOffsets] is kept only so documents written before
+  /// it still work.
+  final List<Reminder> reminders;
+
+  /// The reminders to actually schedule.
+  ///
+  /// Prefers the rich list, and falls back to converting the legacy offsets, so
+  /// a task saved by an older build still fires correctly without a migration
+  /// pass over the database.
+  List<Reminder> get effectiveReminders {
+    if (reminders.isNotEmpty) return reminders;
+    return [
+      for (final offset in reminderOffsets)
+        Reminder(
+          id: 'legacy-$offset',
+          taskId: id,
+          type: offset == 0 ? ReminderType.atTime : ReminderType.beforeTask,
+          offsetMinutes: offset,
+        ),
+    ];
+  }
 
   final List<Subtask> subtasks;
 
@@ -107,8 +138,14 @@ class Task {
   /// Bumped on every write so another device's concurrent edit is detectable.
   final int version;
 
-  /// A task shows on the calendar once it has a start time.
+  /// A task shows on the calendar once it has a start time. Until then it
+  /// lives only on its board, in its category and in search — which is what
+  /// keeps an unscheduled task off the calendar.
   bool get hasSchedule => startDateTime != null;
+
+  /// True when the task occupies a slot in the time grid. An all-day task is
+  /// scheduled, but belongs in the all-day row instead.
+  bool get hasTimeSlot => startDateTime != null && !isAllDay;
 
   bool get isUnsorted => listId == null && boardId == null;
 
@@ -131,8 +168,10 @@ class Task {
     Object? startDateTime = _sentinel,
     Object? endDateTime = _sentinel,
     Recurrence? recurrence,
+    bool? isAllDay,
     Object? reminderMinutesBefore = _sentinel,
     List<int>? reminderOffsets,
+    List<Reminder>? reminders,
     List<Subtask>? subtasks,
     List<String>? attachments,
     int? attachmentCount,
@@ -156,10 +195,12 @@ class Task {
           startDateTime == _sentinel ? this.startDateTime : startDateTime as DateTime?,
       endDateTime: endDateTime == _sentinel ? this.endDateTime : endDateTime as DateTime?,
       recurrence: recurrence ?? this.recurrence,
+      isAllDay: isAllDay ?? this.isAllDay,
       reminderMinutesBefore: reminderMinutesBefore == _sentinel
           ? this.reminderMinutesBefore
           : reminderMinutesBefore as int?,
       reminderOffsets: reminderOffsets ?? this.reminderOffsets,
+      reminders: reminders ?? this.reminders,
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
       attachmentCount: attachmentCount ?? this.attachmentCount,
@@ -188,6 +229,7 @@ class Task {
         recurrence: recurrence,
         reminderMinutesBefore: reminderMinutesBefore,
         reminderOffsets: reminderOffsets,
+        reminders: reminders,
         subtasks: subtasks,
         attachments: attachments,
         attachmentCount: attachmentCount,
@@ -211,8 +253,10 @@ class Task {
         'endDateTime': endDateTime == null ? null : Timestamp.fromDate(endDateTime!),
         'hasSchedule': hasSchedule,
         'recurrence': recurrence.name,
+        'isAllDay': isAllDay,
         'reminderMinutesBefore': reminderMinutesBefore,
         'reminderOffsets': reminderOffsets,
+        'reminders': reminders.map((r) => r.toJson()).toList(),
         'subtasks': subtasks.map((s) => s.toJson()).toList(),
         'attachments': attachments,
         'attachmentCount': attachmentCount,
@@ -240,6 +284,7 @@ class Task {
       ),
       startDateTime: (json['startDateTime'] as Timestamp?)?.toDate(),
       endDateTime: (json['endDateTime'] as Timestamp?)?.toDate(),
+      isAllDay: (json['isAllDay'] ?? false) as bool,
       recurrence: Recurrence.values.firstWhere(
         (r) => r.name == json['recurrence'],
         orElse: () => Recurrence.none,
@@ -247,6 +292,9 @@ class Task {
       reminderMinutesBefore: (json['reminderMinutesBefore'] as num?)?.toInt(),
       reminderOffsets: ((json['reminderOffsets'] ?? const []) as List)
           .map((e) => (e as num).toInt())
+          .toList(),
+      reminders: ((json['reminders'] ?? const []) as List)
+          .map((e) => Reminder.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList(),
       subtasks: ((json['subtasks'] ?? const []) as List)
           .map((e) => Subtask.fromJson(Map<String, dynamic>.from(e as Map)))

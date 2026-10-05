@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/theme.dart';
-import 'core/notifications.dart';
+import 'core/notifications/platform/local_notification_adapter.dart';
 import 'core/providers.dart';
 import 'features/auth/auth_gate.dart';
 import 'features/home/notification_router.dart';
@@ -22,7 +22,7 @@ Future<void> main() async {
     cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
   );
 
-  await Notifications.init();
+  await LocalNotificationAdapter().initialise();
   runApp(const ProviderScope(child: MyScheduleApp()));
 }
 

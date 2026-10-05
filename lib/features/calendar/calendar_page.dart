@@ -44,9 +44,35 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     return [for (var i = 0; i < 7; i++) DateTime(monday.year, monday.month, monday.day + i)];
   }
 
+  /// Category and board filters. These only hide events; they never change the
+  /// task data, so filtering can't lose anything.
+  String? _filterCategoryId;
+  String? _filterBoardId;
+
   @override
   Widget build(BuildContext context) {
-    final tasks = ref.watch(tasksProvider).value ?? const <Task>[];
+    final allTasks = ref.watch(tasksProvider).value ?? const <Task>[];
+
+    // Another screen can send the user here for a specific day, such as the
+    // week strip on Today.
+    final focus = ref.watch(calendarFocusProvider);
+    if (focus != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _anchor = focus;
+          if (_view == CalendarView.month) _view = CalendarView.day;
+        });
+        ref.read(calendarFocusProvider.notifier).clear();
+      });
+    }
+
+    final tasks = allTasks.where((t) {
+      if (_filterCategoryId != null && t.categoryId != _filterCategoryId) return false;
+      if (_filterBoardId != null && t.boardId != _filterBoardId) return false;
+      return true;
+    }).toList();
+
     final unscheduled = tasks.where((t) => t.startDateTime == null && !t.completed).toList();
     final isWide = MediaQuery.sizeOf(context).width >= 900;
 
@@ -59,6 +85,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           onView: (v) => setState(() => _view = v),
           onToday: () => setState(() => _anchor = DateTime.now()),
           onShift: (days) => setState(() => _anchor = _anchor.add(Duration(days: days))),
+        ),
+        _FilterBar(
+          categoryId: _filterCategoryId,
+          boardId: _filterBoardId,
+          onCategory: (id) => setState(() => _filterCategoryId = id),
+          onBoard: (id) => setState(() => _filterBoardId = id),
         ),
         Expanded(
           child: Row(
@@ -149,6 +181,108 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// Filters the calendar by category and board. Both only hide events; the
+/// underlying tasks are untouched.
+class _FilterBar extends ConsumerWidget {
+  const _FilterBar({
+    required this.categoryId,
+    required this.boardId,
+    required this.onCategory,
+    required this.onBoard,
+  });
+
+  final String? categoryId;
+  final String? boardId;
+  final ValueChanged<String?> onCategory;
+  final ValueChanged<String?> onBoard;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider).value ?? const <Category>[];
+    final boards = ref.watch(boardsProvider).value ?? const <Board>[];
+    final selectedCategory = categories.where((c) => c.id == categoryId).firstOrNull;
+    final selectedBoard = boards.where((b) => b.id == boardId).firstOrNull;
+
+    return SizedBox(
+      height: 44,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        children: [
+          PopupMenuButton<String?>(
+            onSelected: (v) => onCategory(v),
+            position: PopupMenuPosition.under,
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: null, child: Text('All categories')),
+              for (final c in categories) PopupMenuItem(value: c.id, child: Text(c.name)),
+            ],
+            child: _FilterChip(
+              label: selectedCategory?.name ?? 'Category',
+              active: categoryId != null,
+              color: selectedCategory == null ? null : Color(selectedCategory.colorValue),
+            ),
+          ),
+          PopupMenuButton<String?>(
+            onSelected: (v) => onBoard(v),
+            position: PopupMenuPosition.under,
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: null, child: Text('All boards')),
+              for (final b in boards) PopupMenuItem(value: b.id, child: Text(b.name)),
+            ],
+            child: _FilterChip(
+              label: selectedBoard?.name ?? 'Board',
+              active: boardId != null,
+            ),
+          ),
+          if (categoryId != null || boardId != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: TextButton(
+                onPressed: () {
+                  onCategory(null);
+                  onBoard(null);
+                },
+                child: const Text('Clear'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label, required this.active, this.color});
+
+  final String label;
+  final bool active;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = color ?? AppColors.primary;
+    return Container(
+      margin: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: active ? tint.withValues(alpha: 0.12) : Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(20),
+        border: active ? Border.all(color: tint) : null,
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.filter_list, size: 14, color: active ? tint : AppColors.muted),
+        const SizedBox(width: 6),
+        Text(label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: active ? tint : AppColors.muted,
+            )),
+      ]),
+    );
+  }
+}
+
 /// Day and week views. Each 15-minute slot is a drop target.
 class _TimeGrid extends ConsumerWidget {
   const _TimeGrid({required this.days, required this.tasks, required this.scrollController});
@@ -181,6 +315,10 @@ class _TimeGrid extends ConsumerWidget {
           ],
         ),
         const Divider(height: 1),
+
+        // Tasks given a date but no time sit here rather than at an arbitrary
+        // place in the grid.
+        _AllDayRow(days: days, tasks: tasks),
         Expanded(
           child: SingleChildScrollView(
             controller: scrollController,
@@ -211,13 +349,133 @@ class _TimeGrid extends ConsumerWidget {
                     ),
                   ),
                   for (final day in days)
-                    Expanded(child: _DayColumn(day: day, tasks: tasksForDay(tasks, day))),
+                    Expanded(
+                      child: _DayColumn(
+                        day: day,
+                        // All-day tasks are drawn in the row above, not in the
+                        // time grid.
+                        tasks: tasksForDay(tasks, day).where((t) => !t.isAllDay).toList(),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The all-day strip above the time grid. A task with a date but no time
+/// lands here, and can be dropped onto a time slot later to get one.
+class _AllDayRow extends ConsumerWidget {
+  const _AllDayRow({required this.days, required this.tasks});
+
+  final List<DateTime> days;
+  final List<Task> tasks;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final holidays = ref.watch(holidaysProvider).value ?? const <Holiday>[];
+    final categories = ref.watch(categoryByIdProvider);
+
+    final hasAnything = days.any((day) =>
+        tasksForDay(tasks, day).any((t) => t.isAllDay) ||
+        holidays.any((h) =>
+            h.date.year == day.year && h.date.month == day.month && h.date.day == day.day));
+
+    if (!hasAnything) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.black.withValues(alpha: 0.06))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(
+            width: 56,
+            child: Padding(
+              padding: EdgeInsets.only(right: 8, top: 8),
+              child: Text('all-day',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(fontSize: 10, color: AppColors.muted)),
+            ),
+          ),
+          for (final day in days)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                child: Column(
+                  children: [
+                    for (final holiday in holidays.where((h) =>
+                        h.date.year == day.year &&
+                        h.date.month == day.month &&
+                        h.date.day == day.day))
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.amber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(holiday.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 10, color: AppColors.amber)),
+                      ),
+                    for (final task in tasksForDay(tasks, day).where((t) => t.isAllDay))
+                      _AllDayChip(task: task, categories: categories),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AllDayChip extends StatelessWidget {
+  const _AllDayChip({required this.task, required this.categories});
+
+  final Task task;
+  final Map<String, Category> categories;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = task.categoryId == null ? null : categories[task.categoryId];
+    final color = category == null ? AppColors.primary : Color(category.colorValue);
+
+    return TaskDraggable(
+      data: TaskDragData(task),
+      feedbackWidth: 180,
+      child: GestureDetector(
+        onTap: () => showTaskDetailSheet(context, task),
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(5),
+            border: Border(left: BorderSide(color: color, width: 2.5)),
+          ),
+          child: Text(
+            task.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: color,
+              decoration: task.completed ? TextDecoration.lineThrough : null,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -453,11 +711,28 @@ class _EventCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            task.title,
-            maxLines: height > 40 ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          Row(
+            children: [
+              if (task.completed) ...[
+                Icon(Icons.check_circle, size: 11, color: color),
+                const SizedBox(width: 3),
+              ],
+              Expanded(
+                child: Text(
+                  task.title,
+                  maxLines: height > 40 ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                    // A finished task stays on the calendar, struck through,
+                    // rather than vanishing from the day's history.
+                    decoration: task.completed ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+              ),
+            ],
           ),
           if (height > 44)
             Text(

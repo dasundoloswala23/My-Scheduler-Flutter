@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../core/providers.dart';
 import '../../models/task.dart';
 import '../task_detail/task_detail_sheet.dart';
+import 'week_preview.dart';
 
 /// Screenshots 12–13: greeting, progress ring, today's timeline, coming up.
 class TodayPage extends ConsumerWidget {
@@ -35,6 +36,8 @@ class TodayPage extends ConsumerWidget {
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 18),
         _ProgressCard(done: done, goal: goal),
+        const SizedBox(height: 16),
+        const WeekPreview(),
         const SizedBox(height: 22),
         Row(
           children: [

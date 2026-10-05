@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../app/theme.dart';
-import '../../core/notifications.dart';
+import '../../core/notifications/models/notification_preferences.dart';
+import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../../core/notifications/scheduling/reminder_calculator.dart';
 import '../../core/position.dart';
 import '../../core/providers.dart';
+import '../../core/notifications/models/reminder.dart' as task_reminder;
 import '../../models/collections.dart';
 import '../../models/task.dart';
 
@@ -93,16 +97,22 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
             position: Position.between(siblings.lastOrNull?.position, null),
             startDateTime: when,
             endDateTime: when?.add(const Duration(hours: 1)),
-            reminderMinutesBefore: _reminderMinutes,
+            // createTask schedules the reminders itself, so the sheet only has
+            // to say which ones the task should have.
+            reminders: _reminderMinutes == null
+                ? const []
+                : [
+                    task_reminder.Reminder(
+                      id: const Uuid().v4(),
+                      taskId: 'new',
+                      type: _reminderMinutes == 0
+                          ? task_reminder.ReminderType.atTime
+                          : task_reminder.ReminderType.beforeTask,
+                      offsetMinutes: _reminderMinutes!,
+                      createdAt: DateTime.now(),
+                    ),
+                  ],
           ));
-          if (when != null && _reminderMinutes != null) {
-            await Notifications.schedule(
-              id: when.millisecondsSinceEpoch ~/ 1000,
-              title: title,
-              body: 'Starting soon',
-              when: when.subtract(Duration(minutes: _reminderMinutes!)),
-            );
-          }
         case QuickAddKind.note:
           await repo.addNote(Note(id: 'new', title: title, categoryId: _categoryId));
         case QuickAddKind.reminder:
@@ -113,13 +123,20 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
             remindAt: remindAt,
             notificationId: remindAt.millisecondsSinceEpoch ~/ 1000,
           ));
-          await Notifications.schedule(
-            id: remindAt.millisecondsSinceEpoch ~/ 1000,
-            title: title,
-            body: 'Reminder',
-            when: remindAt,
+          // A standalone reminder is not attached to a task, so it is
+          // scheduled directly rather than through the task scheduler.
+          await LocalNotificationAdapter().schedule(
+            PlannedNotification(
+              notificationId: remindAt.millisecondsSinceEpoch ~/ 1000,
+              reminderId: id,
+              taskId: '',
+              title: title,
+              body: 'Reminder',
+              fireAt: remindAt,
+              style: NotificationStyle.normal,
+            ),
+            const NotificationPreferences(),
           );
-          debugPrint('Created reminder $id');
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
