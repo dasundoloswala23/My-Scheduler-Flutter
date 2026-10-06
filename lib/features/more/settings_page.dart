@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../../core/account_service.dart';
 import '../../core/providers.dart';
 import 'more_page.dart';
 import 'notification_settings_page.dart';
@@ -11,6 +12,83 @@ import 'notification_settings_page.dart';
 /// Screenshot 36: account, appearance and notification preferences.
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
+
+  /// Asks for confirmation, re-authenticates, then deletes. Re-auth is required
+  /// by Firebase for any deletion of a session that is not recent.
+  Future<void> _deleteAccount(BuildContext context) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete your account?'),
+        content: const Text(
+          'This permanently deletes your tasks, boards, notes, attachments and '
+          'sign-in. It cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !context.mounted) return;
+
+    final service = AccountService();
+    final user = FirebaseAuth.instance.currentUser;
+    final usesPassword = user?.providerData.any((p) => p.providerId == 'password') ?? false;
+
+    try {
+      if (usesPassword) {
+        final password = await _askPassword(context);
+        if (password == null || !context.mounted) return;
+        await service.reauthenticateWithPassword(password);
+      } else {
+        await service.reauthenticateWithProvider(GoogleAuthProvider());
+      }
+      await service.deleteAccount();
+      if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    } on FirebaseAuthException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.code == 'wrong-password' || e.code == 'invalid-credential'
+            ? 'That password is not correct.'
+            : 'Could not delete the account. Please try again.'),
+      ));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not delete the account. Please try again.'),
+      ));
+    }
+  }
+
+  Future<String?> _askPassword(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm it is you'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Password'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return (result == null || result.isEmpty) ? null : result;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -92,6 +170,17 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_remove_outlined, color: AppColors.danger),
+              title: const Text('Delete account',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.danger)),
+              subtitle: const Text('Permanently removes your tasks, files and sign-in',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+              onTap: () => _deleteAccount(context),
             ),
           ),
           const SizedBox(height: 14),

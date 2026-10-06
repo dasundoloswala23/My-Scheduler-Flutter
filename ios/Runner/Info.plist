@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach photos to your tasks.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo to attach to a task.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record audio to attach to a task.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
