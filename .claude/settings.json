@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"/k/Coding/Web Projects/myscheduleplannerwebapp\" && sed -n '206,292p' components/board.tsx)",
+      "Read(//k/Coding/Web Projects/myscheduleplannerwebapp/**)",
+      "Bash(node -e ' *)",
+      "Bash(cd \"/k/Coding/Web Projects/myscheduleplannerwebapp\" && grep -c \"Drop task here\" components/board.tsx; grep -n \"Add card\\\\|function Column\" components/board.tsx | head; npx tsc --noEmit 2>&1 | head -5; echo \"--- dialog outline ---\"; grep -n \"max-w-\\\\[560px\\\\]\\\\|flex-1 overflow-y-auto px-6\\\\|Info label\\\\|Subtasks\\\\|Complete task\\\\|<div className=\\\\\"flex gap-3 border-t\" components/task-detail-dialog.tsx)",
+      "Bash(sed -i 's|import { ListFilter, MoreHorizontal, Plus } from \"lucide-react\";|import { ListFilter, Pencil, Plus } from \"lucide-react\";|' components/board.tsx)",
+      "Bash(node -)",
+      "Bash(cd \"/k/Coding/Web Projects/myscheduleplannerwebapp\" && npm run build 2>&1 | tail -3 && firebase deploy --only hosting --project myscheduleplanner-e22f3 --non-interactive 2>&1 | tail -3)"
+    ]
+  }
+}
