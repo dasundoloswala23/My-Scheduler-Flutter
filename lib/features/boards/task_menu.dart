@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/theme.dart';
 import '../../core/move_controller.dart';
 import '../../core/position.dart';
 import '../../core/providers.dart';
@@ -25,23 +26,36 @@ class TaskMenuButton extends ConsumerWidget {
       padding: EdgeInsets.zero,
       splashRadius: 18,
       onSelected: (value) => _handle(context, ref, value),
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit task'))),
-        PopupMenuItem(value: 'list', child: ListTile(leading: Icon(Icons.view_week_outlined), title: Text('Change list'))),
-        PopupMenuItem(value: 'category', child: ListTile(leading: Icon(Icons.label_outline), title: Text('Change category'))),
-        PopupMenuItem(value: 'date', child: ListTile(leading: Icon(Icons.calendar_today_outlined), title: Text('Change date'))),
-        PopupMenuItem(value: 'time', child: ListTile(leading: Icon(Icons.schedule), title: Text('Change time'))),
-        PopupMenuItem(value: 'priority', child: ListTile(leading: Icon(Icons.flag_outlined), title: Text('Change priority'))),
-        PopupMenuDivider(),
-        PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Delete task'))),
+      itemBuilder: (context) => [
+        _Action('open', Icons.open_in_full, 'Open'),
+        _Action('edit', Icons.edit_outlined, 'Edit task'),
+        const PopupMenuDivider(),
+        _Action('date', Icons.calendar_today_outlined, 'Schedule'),
+        _Action('time', Icons.schedule, 'Change time'),
+        _Action('reminder', Icons.notifications_none, 'Reminder'),
+        const PopupMenuDivider(),
+        _Action('list', Icons.view_week_outlined, 'Move to list'),
+        _Action('category', Icons.label_outline, 'Change category'),
+        _Action('priority', Icons.flag_outlined, 'Change priority'),
+        _Action('duplicate', Icons.copy_outlined, 'Duplicate'),
+        const PopupMenuDivider(),
+        // Deliberately last and in the danger colour: it is the one action
+        // here that cannot be undone.
+        _Action('delete', Icons.delete_outline, 'Delete task',
+            color: context.palette.danger),
       ],
     );
   }
 
   Future<void> _handle(BuildContext context, WidgetRef ref, String value) async {
     switch (value) {
-      case 'edit':
+      // Open, Edit and Reminder all land in the task sheet: it is where the
+      // title, schedule, subtasks, attachments and reminders are edited, so
+      // sending them anywhere else would be a second, lesser editor.
+      case 'open' || 'edit' || 'reminder':
         showTaskDetailSheet(context, task);
+      case 'duplicate':
+        await _duplicate(context, ref);
       case 'list':
         await _changeList(context, ref);
       case 'category':
@@ -174,20 +188,68 @@ class TaskMenuButton extends ConsumerWidget {
     );
   }
 
+  /// Copies the task into the same list, just after the original.
+  ///
+  /// Attachments are not copied: they are real files in Storage, and silently
+  /// duplicating them would double the user's usage without them asking.
+  Future<void> _duplicate(BuildContext context, WidgetRef ref) async {
+    final tasks = ref.read(tasksProvider).value ?? const <Task>[];
+    final siblings = task.listId == null
+        ? const <Task>[]
+        : tasksForList(tasks, task.listId!);
+    final index = siblings.indexWhere((t) => t.id == task.id);
+    final next = index >= 0 && index + 1 < siblings.length ? siblings[index + 1] : null;
+
+    final copy = task.copyWith(
+      title: '${task.title} (copy)',
+      position: Position.between(task.position, next?.position),
+      completed: false,
+      completedAt: null,
+      attachments: const [],
+      attachmentCount: 0,
+      attachmentPreview: null,
+      version: 1,
+    );
+
+    await ref.read(repoProvider).createTask(copy);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Task duplicated')));
+  }
+
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete task?'),
-        content: Text('"${task.title}" will be removed. This cannot be undone.'),
+        content: Text('"${task.title}" will be removed, along with its '
+            'subtasks, reminders and attachments. This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: context.palette.danger),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
     if (ok == true) await ref.read(repoProvider).deleteTask(task.id);
   }
+}
+
+/// One row in the task menu, so every entry is laid out and coloured the same.
+class _Action extends PopupMenuItem<String> {
+  _Action(String value, IconData icon, String label, {Color? color})
+      : super(
+          value: value,
+          child: ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(icon, size: 20, color: color),
+            title: Text(label, style: TextStyle(color: color)),
+          ),
+        );
 }
 
 class _PickerSheet extends StatelessWidget {

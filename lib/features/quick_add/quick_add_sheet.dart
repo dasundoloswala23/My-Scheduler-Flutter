@@ -60,6 +60,15 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
   bool _busy = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Start from the user's default category, if they set one and it still
+    // exists. They can still change it before saving.
+    final defaultCategoryId = ref.read(appPreferencesProvider).defaultCategoryId;
+    if (defaultCategoryId != null) _categoryId = defaultCategoryId;
+  }
+
+  @override
   void dispose() {
     _title.dispose();
     super.dispose();
@@ -94,6 +103,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
             listId: widget.listId,
             boardId: widget.boardId,
             categoryId: _categoryId,
+            priority: ref.read(appPreferencesProvider).defaultPriority,
             position: Position.between(siblings.lastOrNull?.position, null),
             startDateTime: when,
             endDateTime: when?.add(const Duration(hours: 1)),
@@ -184,8 +194,8 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('QUICK ADD',
-                              style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+                          Text('QUICK ADD',
+                              style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
                           Text('Create something',
                               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                         ],
@@ -217,8 +227,8 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('WHAT DO YOU NEED TO DO?',
-                        style: TextStyle(fontSize: 10, letterSpacing: 1, color: AppColors.muted)),
+                    Text('WHAT DO YOU NEED TO DO?',
+                        style: TextStyle(fontSize: 10, letterSpacing: 1, color: context.palette.textSecondary)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _title,
@@ -336,19 +346,19 @@ class _KindButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primarySoft : Theme.of(context).cardTheme.color,
+          color: selected ? context.palette.selected : Theme.of(context).cardTheme.color,
           borderRadius: BorderRadius.circular(14),
           border: selected ? Border.all(color: AppColors.primary, width: 1.4) : null,
         ),
         child: Column(
           children: [
-            Icon(_icon, size: 20, color: selected ? AppColors.primary : AppColors.muted),
+            Icon(_icon, size: 20, color: selected ? AppColors.primary : context.palette.textSecondary),
             const SizedBox(height: 6),
             Text(label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: selected ? AppColors.primary : AppColors.muted,
+                  color: selected ? AppColors.primary : context.palette.textSecondary,
                 )),
           ],
         ),
@@ -369,10 +379,10 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, size: 20, color: AppColors.muted),
+      leading: Icon(icon, size: 20, color: context.palette.textSecondary),
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(value, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
-      trailing: const Icon(Icons.chevron_right, size: 20, color: AppColors.muted),
+      subtitle: Text(value, style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
+      trailing: Icon(Icons.chevron_right, size: 20, color: context.palette.textSecondary),
     );
   }
 }

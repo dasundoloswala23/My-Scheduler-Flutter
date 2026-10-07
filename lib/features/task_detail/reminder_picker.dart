@@ -122,10 +122,10 @@ class _ReminderEditorState extends State<_ReminderEditor> {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text('Reminders fire before the task starts.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                  style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
             ),
 
             // Quick presets.
@@ -184,7 +184,7 @@ class _ReminderEditorState extends State<_ReminderEditor> {
                       onChanged: (unit) => setState(() => _unit = unit ?? ReminderUnit.minutes),
                     ),
                     const SizedBox(width: 12),
-                    const Text('before', style: TextStyle(color: AppColors.muted)),
+                    Text('before', style: TextStyle(color: context.palette.textSecondary)),
                   ],
                 ),
               ),

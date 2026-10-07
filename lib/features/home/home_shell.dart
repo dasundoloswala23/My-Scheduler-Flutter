@@ -150,16 +150,16 @@ class OfflineBanner extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      color: AppColors.amber.withValues(alpha: 0.15),
+      color: context.palette.warning.withValues(alpha: 0.15),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.cloud_off, size: 16, color: AppColors.amber),
+          Icon(Icons.cloud_off, size: 16, color: context.palette.warning),
           SizedBox(width: 8),
           Expanded(
             child: Text(
               'Offline. Your changes are saved here and will sync when you reconnect.',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.amber),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.warning),
             ),
           ),
         ],
@@ -196,11 +196,11 @@ class _TopBar extends StatelessWidget {
                         color: Theme.of(context).cardTheme.color,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(children: [
-                        Icon(Icons.search, size: 18, color: AppColors.muted),
+                      child: Row(children: [
+                        Icon(Icons.search, size: 18, color: context.palette.textSecondary),
                         SizedBox(width: 10),
                         Text('Search tasks, boards, notes…',
-                            style: TextStyle(color: AppColors.muted, fontSize: 13.5)),
+                            style: TextStyle(color: context.palette.textSecondary, fontSize: 13.5)),
                       ]),
                     ),
                   ),
@@ -293,7 +293,7 @@ class _Sidebar extends ConsumerWidget {
                   subtitle: Text(user?.email ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                      style: TextStyle(fontSize: 11, color: context.palette.textSecondary)),
                 ),
               ),
             ),
@@ -306,10 +306,10 @@ class _Sidebar extends ConsumerWidget {
                 onTap: () => onSelect(i),
               ),
             const Divider(height: 24),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text('YOUR BOARDS',
-                  style: TextStyle(fontSize: 9.5, letterSpacing: 1.1, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 9.5, letterSpacing: 1.1, color: context.palette.textSecondary)),
             ),
             Expanded(
               child: ListView(
@@ -357,12 +357,12 @@ class _SidebarItem extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? AppColors.primarySoft : Colors.transparent,
+            color: selected ? context.palette.selected : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 19, color: selected ? AppColors.primary : AppColors.muted),
+              Icon(icon, size: 19, color: selected ? AppColors.primary : context.palette.textSecondary),
               const SizedBox(width: 12),
               Text(label,
                   style: TextStyle(

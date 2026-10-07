@@ -54,13 +54,13 @@ class _Form extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
-              color: AppColors.amber.withValues(alpha: 0.12),
+              color: context.palette.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
+            child: Text(
               'This platform cannot schedule notifications, so these settings '
               'are saved but have no effect here.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.amber),
+              style: TextStyle(fontSize: 12.5, color: context.palette.warning),
             ),
           ),
 
@@ -136,7 +136,7 @@ class _Form extends ConsumerWidget {
               prefs.defaultReminderMinutes == null
                   ? 'No reminder'
                   : describeOffset(prefs.defaultReminderMinutes!),
-              style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+              style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
@@ -262,8 +262,8 @@ class _Form extends ConsumerWidget {
           child: ListTile(
             leading: const Icon(Icons.verified_user_outlined),
             title: const Text('Check permission', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Ask the system again if alerts are not arriving',
-                style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+            subtitle: Text('Ask the system again if alerts are not arriving',
+                style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary)),
             onTap: () async {
               final adapter = LocalNotificationAdapter();
               final granted = await adapter.requestPermission();
@@ -291,7 +291,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
         child: Text(text.toUpperCase(),
-            style: const TextStyle(fontSize: 10, letterSpacing: 1.1, color: AppColors.muted)),
+            style: TextStyle(fontSize: 10, letterSpacing: 1.1, color: context.palette.textSecondary)),
       );
 }
 
@@ -317,7 +317,7 @@ class _Toggle extends StatelessWidget {
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
       subtitle: subtitle == null
           ? null
-          : Text(subtitle!, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+          : Text(subtitle!, style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
       value: value && enabled,
       onChanged: enabled ? onChanged : null,
     );
@@ -382,7 +382,7 @@ class _TimeRow extends StatelessWidget {
       trailing: Text(time.format(),
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: enabled ? AppColors.primary : AppColors.muted,
+            color: enabled ? AppColors.primary : context.palette.textSecondary,
           )),
       onTap: enabled
           ? () async {
@@ -407,7 +407,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off, size: 36, color: AppColors.muted),
+          Icon(Icons.cloud_off, size: 36, color: context.palette.textSecondary),
           const SizedBox(height: 12),
           const Text('Could not load your settings.',
               style: TextStyle(fontWeight: FontWeight.w600)),

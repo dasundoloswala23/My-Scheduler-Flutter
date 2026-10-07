@@ -21,14 +21,14 @@ class InboxPage extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
-        const Text('QUICK CAPTURE',
-            style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+        Text('QUICK CAPTURE',
+            style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
         Text('Inbox', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primarySoft,
+            color: context.palette.selected,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -76,12 +76,12 @@ class InboxPage extends ConsumerWidget {
                 leading: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () => ref.read(repoProvider).setTaskCompleted(task, true),
-                  child: const Icon(Icons.circle_outlined, color: AppColors.muted),
+                  child: Icon(Icons.circle_outlined, color: context.palette.textSecondary),
                 ),
                 title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                 subtitle: Text(
                   categories[task.categoryId]?.name ?? 'Unsorted',
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
                 ),
                 trailing: TaskMenuButton(task: task),
               ),
@@ -99,17 +99,17 @@ class _InboxZero extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.inbox_outlined, size: 18, color: AppColors.muted),
+        Icon(Icons.inbox_outlined, size: 18, color: context.palette.textSecondary),
         const SizedBox(width: 10),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Inbox zero feels good.',
+              const Text('Inbox zero feels good.',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text('Assign a board, date, or category to move items out of your inbox.',
-                  style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
             ],
           ),
         ),

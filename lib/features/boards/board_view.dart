@@ -61,7 +61,10 @@ class _BoardViewState extends ConsumerState<BoardView> {
                   children: [
                     Text(
                       (board?.workspace ?? 'PERSONAL WORKSPACE').toUpperCase(),
-                      style: const TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted),
+                      style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.2,
+                          color: context.palette.textSecondary),
                     ),
                     Text(board?.name ?? 'Board',
                         style: Theme.of(context)
@@ -79,6 +82,9 @@ class _BoardViewState extends ConsumerState<BoardView> {
           ),
         ),
         Expanded(
+          // Columns are top-aligned and sized to their cards, so a board of
+          // short lists reads as a row of cards rather than a row of tall
+          // empty panels.
           child: ListView(
             controller: _horizontal,
             scrollDirection: Axis.horizontal,
@@ -179,83 +185,125 @@ class _ListColumnState extends ConsumerState<_ListColumn> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.palette;
+    final isEmpty = widget.tasks.isEmpty;
 
-    return Container(
-      width: 320,
-      margin: const EdgeInsets.only(right: 14),
-      padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
-      decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark ? const Color(0xFF17181D) : const Color(0xFFEDEFF3),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(6, 0, 0, 8),
-            child: Row(
-              children: [
-                Icon(Icons.circle, size: 9, color: Color(widget.list.colorValue)),
-                const SizedBox(width: 8),
-                Text(widget.list.name,
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(6),
+    // The column sizes to its cards instead of filling the viewport, which is
+    // what removes the tall empty black area under a short list (section 2).
+    // `Flexible` still caps it at the available height, so a long list scrolls
+    // rather than overflowing.
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Container(
+        width: _columnWidth(MediaQuery.sizeOf(context).width),
+        margin: const EdgeInsets.only(right: 14),
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 6),
+        decoration: BoxDecoration(
+          color: palette.surfaceVariant,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: palette.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 0, 0, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.circle,
+                      size: 9, color: palette.onTint(Color(widget.list.colorValue))),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      widget.list.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    ),
                   ),
-                  child: Text('${widget.tasks.length}', style: const TextStyle(fontSize: 11)),
-                ),
-                const Spacer(),
-                _ListMenu(list: widget.list),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              controller: _vertical,
-              padding: EdgeInsets.zero,
-              children: [
-                for (var i = 0; i < widget.tasks.length; i++) ...[
-                  DropGap(onAccept: (data) => _drop(data, i)),
-                  TaskDraggable(
-                    data: TaskDragData(widget.tasks[i], fromListId: widget.list.id),
-                    onDragUpdate: (d) {
-                      widget.onDragUpdate(d);
-                      _autoScroller.update(d.globalPosition, MediaQuery.sizeOf(context));
-                    },
-                    onDragEnd: () {
-                      widget.onDragEnd();
-                      _autoScroller.stop();
-                    },
-                    child: TaskCard(task: widget.tasks[i]),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: palette.hover,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('${widget.tasks.length}',
+                        style: TextStyle(fontSize: 11, color: palette.textSecondary)),
                   ),
+                  const Spacer(),
+                  _ListMenu(list: widget.list),
                 ],
-                // The trailing zone is the big dashed "Drop task here" target.
-                _TailDropZone(onAccept: (data) => _drop(data, widget.tasks.length)),
-              ],
+              ),
             ),
-          ),
-          TextButton.icon(
-            onPressed: () => showQuickAddSheet(
-              context,
-              listId: widget.list.id,
-              boardId: widget.list.boardId,
+            if (isEmpty)
+              // An empty list still needs a comfortable drop target, just not
+              // a viewport-tall one.
+              _TailDropZone(
+                onAccept: (data) => _drop(data, 0),
+                isOnlyTarget: true,
+              )
+            else
+              Flexible(
+                child: ListView(
+                  controller: _vertical,
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    for (var i = 0; i < widget.tasks.length; i++) ...[
+                      DropGap(onAccept: (data) => _drop(data, i)),
+                      TaskDraggable(
+                        data: TaskDragData(widget.tasks[i], fromListId: widget.list.id),
+                        onDragUpdate: (d) {
+                          widget.onDragUpdate(d);
+                          _autoScroller.update(d.globalPosition, MediaQuery.sizeOf(context));
+                        },
+                        onDragEnd: () {
+                          widget.onDragEnd();
+                          _autoScroller.stop();
+                        },
+                        child: TaskCard(task: widget.tasks[i]),
+                      ),
+                    ],
+                    _TailDropZone(onAccept: (data) => _drop(data, widget.tasks.length)),
+                  ],
+                ),
+              ),
+            TextButton.icon(
+              onPressed: () => showQuickAddSheet(
+                context,
+                listId: widget.list.id,
+                boardId: widget.list.boardId,
+              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add task'),
             ),
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add task'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  /// Narrower columns on a small laptop so three still fit without the board
+  /// clipping, wider on a large display where there is room to read.
+  double _columnWidth(double screenWidth) {
+    if (screenWidth < 420) return screenWidth - 48;
+    if (screenWidth < 1400) return 300;
+    return 330;
+  }
 }
 
+/// The drop target under the last card, and the whole target of an empty
+/// list.
 class _TailDropZone extends StatefulWidget {
-  const _TailDropZone({required this.onAccept});
+  const _TailDropZone({required this.onAccept, this.isOnlyTarget = false});
+
   final void Function(TaskDragData) onAccept;
+
+  /// True when the list has no cards. The zone is then a little taller and
+  /// says so, instead of being a bare dashed strip.
+  final bool isOnlyTarget;
 
   @override
   State<_TailDropZone> createState() => _TailDropZoneState();
@@ -266,6 +314,9 @@ class _TailDropZoneState extends State<_TailDropZone> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final restingHeight = widget.isOnlyTarget ? 92.0 : 44.0;
+
     return DragTarget<TaskDragData>(
       onWillAcceptWithDetails: (_) {
         setState(() => _hovering = true);
@@ -278,25 +329,40 @@ class _TailDropZoneState extends State<_TailDropZone> {
       },
       builder: (context, candidate, rejected) => AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        height: _hovering ? 64 : 46,
+        height: _hovering ? restingHeight + 16 : restingHeight,
         margin: const EdgeInsets.only(top: 6, bottom: 4),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _hovering ? AppColors.primary.withValues(alpha: 0.08) : Colors.transparent,
+          color: _hovering ? palette.selected : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: _hovering ? AppColors.primary : AppColors.primary.withValues(alpha: 0.35),
+            color: _hovering ? AppColors.primary : palette.border,
             width: _hovering ? 2 : 1.4,
           ),
         ),
-        child: Text(
-          'Drop task here',
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: AppColors.primary.withValues(alpha: _hovering ? 1 : 0.7),
-          ),
-        ),
+        child: widget.isOnlyTarget && !_hovering
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('No tasks yet',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      )),
+                  const SizedBox(height: 3),
+                  Text('Drop a task here',
+                      style: TextStyle(fontSize: 11.5, color: palette.textDisabled)),
+                ],
+              )
+            : Text(
+                'Drop task here',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: _hovering ? AppColors.primary : palette.textSecondary,
+                ),
+              ),
       ),
     );
   }
@@ -365,24 +431,54 @@ class _FilterButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider).value ?? const <Category>[];
+    final palette = context.palette;
+    final selected = categories.where((c) => c.id == selectedId).firstOrNull;
+
     return PopupMenuButton<String?>(
       onSelected: onChanged,
       position: PopupMenuPosition.under,
       itemBuilder: (context) => [
-        const PopupMenuItem(value: null, child: Text('All categories')),
-        for (final c in categories) PopupMenuItem(value: c.id, child: Text(c.name)),
+        _item(null, 'All categories', null),
+        for (final c in categories)
+          _item(c.id, c.name, palette.onTint(Color(c.colorValue))),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardTheme.color,
+          color: palette.surface,
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selectedId == null ? palette.border : AppColors.primary),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.filter_list, size: 16, color: selectedId == null ? AppColors.muted : AppColors.primary),
+          Icon(Icons.filter_list,
+              size: 16, color: selectedId == null ? palette.textSecondary : AppColors.primary),
           const SizedBox(width: 6),
-          const Text('Filter', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          // Showing the active category, not just "Filter", so it is obvious
+          // why cards are missing from the board.
+          Text(selected?.name ?? 'All categories',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: selectedId == null ? palette.textPrimary : AppColors.primary,
+              )),
         ]),
+      ),
+    );
+  }
+
+  PopupMenuItem<String?> _item(String? value, String label, Color? dot) {
+    return PopupMenuItem<String?>(
+      value: value,
+      child: Row(
+        children: [
+          if (dot != null) ...[
+            Icon(Icons.circle, size: 9, color: dot),
+            const SizedBox(width: 8),
+          ],
+          Expanded(child: Text(label)),
+          if (value == selectedId)
+            const Icon(Icons.check, size: 16, color: AppColors.primary),
+        ],
       ),
     );
   }

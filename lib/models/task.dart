@@ -47,6 +47,43 @@ class Subtask {
       );
 }
 
+/// A denormalised snapshot of a task's first attachment, written by
+/// `AttachmentService` so a board card can draw a thumbnail without reading
+/// the attachment subcollection.
+class AttachmentPreview {
+  const AttachmentPreview({
+    required this.mimeType,
+    this.thumbnailUrl,
+    this.fileName = '',
+  });
+
+  final String mimeType;
+
+  /// Set for images only; other types fall back to a typed icon.
+  final String? thumbnailUrl;
+  final String fileName;
+
+  bool get isImage => mimeType.startsWith('image/');
+  bool get isVideo => mimeType.startsWith('video/');
+  bool get isAudio => mimeType.startsWith('audio/');
+  bool get isPdf => mimeType == 'application/pdf';
+
+  Map<String, dynamic> toJson() =>
+      {'mimeType': mimeType, 'thumbnailUrl': thumbnailUrl, 'fileName': fileName};
+
+  static AttachmentPreview? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final json = Map<String, dynamic>.from(raw);
+    final mimeType = json['mimeType'];
+    if (mimeType is! String) return null;
+    return AttachmentPreview(
+      mimeType: mimeType,
+      thumbnailUrl: json['thumbnailUrl'] as String?,
+      fileName: (json['fileName'] ?? '') as String,
+    );
+  }
+}
+
 class Task {
   const Task({
     required this.id,
@@ -69,6 +106,7 @@ class Task {
     this.subtasks = const [],
     this.attachments = const [],
     this.attachmentCount = 0,
+    this.attachmentPreview,
     this.createdAt,
     this.updatedAt,
     this.completedAt,
@@ -131,6 +169,10 @@ class Task {
   /// Number of real attachments, denormalised so the board does not have to
   /// query each task's subcollection to draw the paperclip badge.
   final int attachmentCount;
+
+  /// The first attachment, copied onto the task so the board can draw a
+  /// thumbnail without a query per card.
+  final AttachmentPreview? attachmentPreview;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? completedAt;
@@ -175,6 +217,7 @@ class Task {
     List<Subtask>? subtasks,
     List<String>? attachments,
     int? attachmentCount,
+    Object? attachmentPreview = _sentinel,
     DateTime? updatedAt,
     Object? completedAt = _sentinel,
     int? version,
@@ -204,6 +247,9 @@ class Task {
       subtasks: subtasks ?? this.subtasks,
       attachments: attachments ?? this.attachments,
       attachmentCount: attachmentCount ?? this.attachmentCount,
+      attachmentPreview: attachmentPreview == _sentinel
+          ? this.attachmentPreview
+          : attachmentPreview as AttachmentPreview?,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt == _sentinel ? this.completedAt : completedAt as DateTime?,
@@ -233,6 +279,7 @@ class Task {
         subtasks: subtasks,
         attachments: attachments,
         attachmentCount: attachmentCount,
+        attachmentPreview: attachmentPreview,
         createdAt: createdAt,
         updatedAt: updatedAt,
         completedAt: completedAt,
@@ -260,6 +307,7 @@ class Task {
         'subtasks': subtasks.map((s) => s.toJson()).toList(),
         'attachments': attachments,
         'attachmentCount': attachmentCount,
+        'attachmentPreview': attachmentPreview?.toJson(),
         'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
         'completedAt': completedAt == null ? null : Timestamp.fromDate(completedAt!),
@@ -302,6 +350,7 @@ class Task {
         ..sort((a, b) => a.position.compareTo(b.position)),
       attachments: ((json['attachments'] ?? const []) as List).cast<String>(),
       attachmentCount: (json['attachmentCount'] as num?)?.toInt() ?? 0,
+      attachmentPreview: AttachmentPreview.fromJson(json['attachmentPreview']),
       createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate(),
       completedAt: (json['completedAt'] as Timestamp?)?.toDate(),

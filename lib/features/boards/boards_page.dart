@@ -51,7 +51,7 @@ class _BoardsPageState extends ConsumerState<BoardsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('${boards.length} WORKSPACES',
-                      style: const TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+                      style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
                   Text('Boards',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                 ],
@@ -140,7 +140,7 @@ class _BoardTile extends StatelessWidget {
         ),
         title: Text(board.name, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text('$taskCount tasks · $listCount lists',
-            style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
         trailing: const Icon(Icons.chevron_right),
       ),
     );

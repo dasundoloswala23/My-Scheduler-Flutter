@@ -40,11 +40,11 @@ class RemindersPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
               children: [
                 if (!LocalNotificationAdapter().supportsScheduling)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(12),
                     child: Text(
                       'Notifications are not available on this platform, so reminders are shown here only.',
-                      style: TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
                     ),
                   ),
                 for (final r in reminders)
@@ -67,17 +67,17 @@ class RemindersPage extends ConsumerWidget {
                         },
                         child: Icon(
                           r.done ? Icons.check_circle : Icons.notifications_none,
-                          color: r.done ? AppColors.success : AppColors.danger,
+                          color: r.done ? context.palette.success : context.palette.danger,
                         ),
                       ),
                       title: Text(r.title,
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             decoration: r.done ? TextDecoration.lineThrough : null,
-                            color: r.done ? AppColors.muted : null,
+                            color: r.done ? context.palette.textSecondary : null,
                           )),
                       subtitle: Text(DateFormat('EEE, MMM d · h:mm a').format(r.remindAt),
-                          style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                          style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, size: 20),
                         onPressed: () async {

@@ -142,7 +142,7 @@ class _AttachmentSectionState extends State<AttachmentSection> {
                 const SizedBox(width: 8),
                 if (attachments.isNotEmpty)
                   Text('${attachments.length}',
-                      style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                      style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
                 const Spacer(),
                 _AddMenu(
                   canCapture: _canCaptureImage,
@@ -166,8 +166,8 @@ class _AttachmentSectionState extends State<AttachmentSection> {
             else if (snapshot.hasError)
               _ErrorRow(onRetry: () => setState(() {}))
             else if (attachments.isEmpty && _uploads.isEmpty)
-              const Text('No attachments yet.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              Text('No attachments yet.',
+                  style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
 
             for (final upload in _uploads) _UploadRow(
                   upload: upload,
@@ -250,7 +250,7 @@ class _AddMenu extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.primarySoft,
+          color: context.palette.selected,
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Row(mainAxisSize: MainAxisSize.min, children: [
@@ -281,12 +281,12 @@ class _UploadRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: failed ? AppColors.danger : Colors.transparent),
+        border: Border.all(color: failed ? context.palette.danger : Colors.transparent),
       ),
       child: Row(
         children: [
           Icon(failed ? Icons.error_outline : Icons.upload_file,
-              size: 20, color: failed ? AppColors.danger : AppColors.primary),
+              size: 20, color: failed ? context.palette.danger : AppColors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -296,7 +296,7 @@ class _UploadRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: failed ? AppColors.danger : AppColors.muted,
+                      color: failed ? context.palette.danger : context.palette.textSecondary,
                     )),
                 const SizedBox(height: 2),
                 Text(upload.name,
@@ -310,7 +310,7 @@ class _UploadRow extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: upload.progress == 0 ? null : upload.progress,
                       minHeight: 5,
-                      backgroundColor: AppColors.primarySoft,
+                      backgroundColor: context.palette.selected,
                       valueColor: const AlwaysStoppedAnimation(AppColors.primary),
                     ),
                   ),
@@ -323,7 +323,7 @@ class _UploadRow extends StatelessWidget {
             TextButton(onPressed: onRetry, child: const Text('Retry'))
           else
             Text('$percent%',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted)),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: context.palette.textSecondary)),
           IconButton(
             tooltip: 'Cancel',
             onPressed: onCancel,
@@ -377,7 +377,7 @@ class _AttachmentRow extends StatelessWidget {
                         imageUrl: attachment.thumbnailUrl ?? attachment.downloadUrl,
                         fit: BoxFit.cover,
                         placeholder: (context, _) => Container(
-                          color: AppColors.primarySoft,
+                          color: context.palette.selected,
                           child: const Center(
                             child: SizedBox(
                               height: 14,
@@ -387,13 +387,13 @@ class _AttachmentRow extends StatelessWidget {
                           ),
                         ),
                         errorWidget: (context, _, _) => Container(
-                          color: AppColors.primarySoft,
+                          color: context.palette.selected,
                           child: const Icon(Icons.broken_image_outlined,
                               size: 18, color: AppColors.primary),
                         ),
                       )
                     : Container(
-                        color: AppColors.primarySoft,
+                        color: context.palette.selected,
                         child: Icon(_icon, color: AppColors.primary, size: 20),
                       ),
               ),
@@ -409,7 +409,7 @@ class _AttachmentRow extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 2),
                   Text('${attachment.readableSize} · ${_label()}',
-                      style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                      style: TextStyle(fontSize: 11.5, color: context.palette.textSecondary)),
                 ],
               ),
             ),
@@ -441,11 +441,11 @@ class _ErrorRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.cloud_off, size: 18, color: AppColors.muted),
+        Icon(Icons.cloud_off, size: 18, color: context.palette.textSecondary),
         const SizedBox(width: 8),
-        const Expanded(
+        Expanded(
           child: Text('Could not load attachments.',
-              style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
         ),
         TextButton(onPressed: onRetry, child: const Text('Retry')),
       ],

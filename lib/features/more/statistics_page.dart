@@ -55,11 +55,11 @@ class StatisticsPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('This week', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                  Text('This week', style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
                   const SizedBox(height: 6),
                   Text('${completedThisWeek.length}',
                       style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700, height: 1)),
-                  const Text('tasks completed', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                  Text('tasks completed', style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 120,
@@ -78,13 +78,13 @@ class StatisticsPage extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       color: i == now.weekday - 1
                                           ? AppColors.primary
-                                          : AppColors.primarySoft,
+                                          : context.palette.selected,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Text(const ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i],
-                                      style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                                      style: TextStyle(fontSize: 11, color: context.palette.textSecondary)),
                                 ],
                               ),
                             ),
@@ -113,7 +113,7 @@ class StatisticsPage extends ConsumerWidget {
                   icon: Icons.check,
                   value: '$completionRate%',
                   label: 'Completion',
-                  color: AppColors.success,
+                  color: context.palette.success,
                 ),
               ),
             ],
@@ -126,7 +126,7 @@ class StatisticsPage extends ConsumerWidget {
                   icon: Icons.flag_outlined,
                   value: '$overdue',
                   label: 'Overdue',
-                  color: AppColors.danger,
+                  color: context.palette.danger,
                 ),
               ),
               const SizedBox(width: 12),
@@ -144,7 +144,7 @@ class StatisticsPage extends ConsumerWidget {
           const Text('Category activity', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 12),
           if (totalCounted == 0)
-            const Text('No active tasks yet.', style: TextStyle(color: AppColors.muted, fontSize: 13))
+            Text('No active tasks yet.', style: TextStyle(color: context.palette.textSecondary, fontSize: 13))
           else
             for (final c in categories.where((c) => (counts[c.id] ?? 0) > 0))
               Padding(
@@ -173,7 +173,7 @@ class StatisticsPage extends ConsumerWidget {
                     ),
                     const SizedBox(width: 10),
                     Text('${(((counts[c.id] ?? 0) / totalCounted) * 100).round()}%',
-                        style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                        style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
                   ],
                 ),
               ),

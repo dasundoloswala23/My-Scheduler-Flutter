@@ -190,23 +190,50 @@ class Reminder {
   }
 }
 
+/// A holiday the user added by hand.
+///
+/// Built-in holidays are not stored: they are generated from
+/// `HolidayData`, so only the user's own entries ever reach Firestore.
 class Holiday {
   const Holiday({
     required this.id,
     required this.name,
     required this.date,
-    this.region = 'Sri Lanka',
+    this.region = '',
+    this.countryCode = '',
+    this.category = 'public',
   });
 
   final String id;
   final String name;
   final DateTime date;
+
+  /// Free-text label kept for documents written before [countryCode] existed.
   final String region;
+
+  /// ISO 3166-1 alpha-2, or empty for a holiday not tied to a country.
+  final String countryCode;
+
+  /// A [HolidayCategory] id. Stored as a string so an unknown value from a
+  /// newer build degrades instead of failing to parse.
+  final String category;
+
+  Holiday copyWith({String? name, DateTime? date, String? countryCode, String? category}) =>
+      Holiday(
+        id: id,
+        name: name ?? this.name,
+        date: date ?? this.date,
+        region: region,
+        countryCode: countryCode ?? this.countryCode,
+        category: category ?? this.category,
+      );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'date': Timestamp.fromDate(date),
         'region': region,
+        'countryCode': countryCode,
+        'category': category,
       };
 
   factory Holiday.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -215,7 +242,9 @@ class Holiday {
       id: doc.id,
       name: (json['name'] ?? '') as String,
       date: (json['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      region: (json['region'] ?? 'Sri Lanka') as String,
+      region: (json['region'] ?? '') as String,
+      countryCode: (json['countryCode'] ?? '') as String,
+      category: (json['category'] ?? 'public') as String,
     );
   }
 }

@@ -109,17 +109,17 @@ class _FocusPageState extends ConsumerState<FocusPage> {
                   Text('$minutes:$seconds',
                       style: const TextStyle(fontSize: 64, fontWeight: FontWeight.w300, letterSpacing: -2)),
                   const SizedBox(height: 10),
-                  const Text('Ready when you are. Remove distractions and make it count.',
+                  Text('Ready when you are. Remove distractions and make it count.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                      style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
                   const SizedBox(height: 20),
                   Card(
                     margin: EdgeInsets.zero,
                     color: Theme.of(context).scaffoldBackgroundColor,
                     child: ListTile(
                       leading: const Icon(Icons.circle_outlined, size: 20),
-                      title: const Text('FOCUSING ON',
-                          style: TextStyle(fontSize: 9.5, letterSpacing: 1.1, color: AppColors.muted)),
+                      title: Text('FOCUSING ON',
+                          style: TextStyle(fontSize: 9.5, letterSpacing: 1.1, color: context.palette.textSecondary)),
                       subtitle: Text(_focusTask?.title ?? 'Pick a task',
                           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                       trailing: PopupMenuButton<Task?>(
@@ -167,7 +167,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
           ),
           const SizedBox(height: 10),
           if (today.isEmpty)
-            const Text('No sessions yet today.', style: TextStyle(color: AppColors.muted, fontSize: 13))
+            Text('No sessions yet today.', style: TextStyle(color: context.palette.textSecondary, fontSize: 13))
           else
             for (final s in today)
               ListTile(
@@ -175,7 +175,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
                 leading: Text(DateFormat('HH:mm').format(s.startedAt),
                     style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
                 title: Text(s.taskTitle, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                trailing: Text('${s.minutes} min', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                trailing: Text('${s.minutes} min', style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
               ),
         ],
       ),

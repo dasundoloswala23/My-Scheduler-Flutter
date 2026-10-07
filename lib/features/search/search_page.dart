@@ -367,7 +367,7 @@ class _Chip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: active ? AppColors.primarySoft : Theme.of(context).cardTheme.color,
+            color: active ? context.palette.selected : Theme.of(context).cardTheme.color,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: active ? AppColors.primary : Colors.transparent),
           ),
@@ -376,7 +376,7 @@ class _Chip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: active ? AppColors.primary : AppColors.muted,
+              color: active ? AppColors.primary : context.palette.textSecondary,
             ),
           ),
         ),
@@ -407,7 +407,7 @@ class _HitTile extends StatelessWidget {
         title: Text(hit.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: hit.subtitle.isEmpty
             ? null
-            : Text(hit.subtitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            : Text(hit.subtitle, style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
         onTap: hit.task == null ? null : () => showTaskDetailSheet(context, hit.task!),
       ),
     );
@@ -426,7 +426,7 @@ class _EmptyResults extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(hasQuery ? Icons.search_off : Icons.search, size: 40, color: AppColors.muted),
+            Icon(hasQuery ? Icons.search_off : Icons.search, size: 40, color: context.palette.textSecondary),
             const SizedBox(height: 14),
             Text(
               hasQuery ? 'No results' : 'Search your workspace',
@@ -438,7 +438,7 @@ class _EmptyResults extends StatelessWidget {
                   ? 'Try a different word, or clear a filter.'
                   : 'Find tasks, subtasks, notes, boards, lists and categories.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
             ),
           ],
         ),

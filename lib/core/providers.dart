@@ -4,8 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/collections.dart';
 import '../models/task.dart';
+import '../models/holiday_entry.dart';
 import 'attachment_service.dart';
+import 'holidays/holiday_service.dart';
 import 'notifications/models/notification_preferences.dart';
+import 'preferences/app_preferences.dart';
+import 'preferences/app_preferences_service.dart';
 import 'notifications/platform/local_notification_adapter.dart';
 import 'notifications/platform/notification_adapter.dart';
 import 'notifications/services/notification_service.dart';
@@ -118,16 +122,40 @@ class CalendarFocusController extends Notifier<DateTime?> {
 final calendarFocusProvider =
     NotifierProvider<CalendarFocusController, DateTime?>(CalendarFocusController.new);
 
-class ThemeModeController extends Notifier<ThemeMode> {
-  @override
-  ThemeMode build() => ThemeMode.light;
+final appPreferencesServiceProvider = Provider<AppPreferencesService>((ref) {
+  final user = ref.watch(authStateProvider).value;
+  return AppPreferencesService(uid: user?.uid ?? '_anon');
+});
 
-  void set(ThemeMode mode) => state = mode;
+/// The user's app preferences, streamed from their user document so a change
+/// made on one device shows up on the others.
+///
+/// Readers use [appPreferencesProvider] instead of this, so they get the
+/// defaults while the first snapshot is still in flight rather than having to
+/// handle a loading state each time.
+final appPreferencesStreamProvider = StreamProvider<AppPreferences>(
+    (ref) => ref.watch(appPreferencesServiceProvider).watch());
 
-  void toggle() => state = state == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-}
+final appPreferencesProvider = Provider<AppPreferences>((ref) =>
+    ref.watch(appPreferencesStreamProvider).value ?? const AppPreferences());
 
-final themeModeProvider = NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+/// Saves a changed preference. Everything that reads [appPreferencesProvider]
+/// updates from the resulting snapshot, so there is one source of truth.
+final savePreferencesProvider = Provider<Future<void> Function(AppPreferences)>(
+    (ref) => ref.watch(appPreferencesServiceProvider).save);
+
+final themeModeProvider = Provider<ThemeMode>((ref) => ref.watch(appPreferencesProvider).themeMode);
+
+/// Holiday metadata for the calendar, built from the user's country and
+/// category choices plus any holidays they added themselves.
+final holidayServiceProvider = Provider<HolidayService>((ref) => HolidayService(
+      preferences: ref.watch(appPreferencesProvider),
+      userHolidays: ref.watch(holidaysProvider).value ?? const <Holiday>[],
+    ));
+
+/// Holidays on a single day, for the small number of callers that need one day
+/// rather than a range.
+List<HolidayEntry> holidaysOn(HolidayService service, DateTime day) => service.entriesOn(day);
 
 /// Category lookup by id, used by cards to draw the coloured chip.
 final categoryByIdProvider = Provider<Map<String, Category>>((ref) {

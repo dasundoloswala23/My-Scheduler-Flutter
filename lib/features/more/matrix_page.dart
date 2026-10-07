@@ -50,7 +50,7 @@ class MatrixPage extends ConsumerWidget {
                     child: _Quadrant(
                       title: 'Do first',
                       subtitle: 'Urgent & important',
-                      color: AppColors.danger,
+                      color: context.palette.danger,
                       priority: TaskPriority.high,
                       tasks: tasks.where((t) => t.priority == TaskPriority.high).toList(),
                     ),
@@ -74,7 +74,7 @@ class MatrixPage extends ConsumerWidget {
                     child: _Quadrant(
                       title: 'Delegate',
                       subtitle: 'Urgent, not important',
-                      color: AppColors.amber,
+                      color: context.palette.warning,
                       priority: TaskPriority.low,
                       tasks: tasks.where((t) => t.priority == TaskPriority.low).toList(),
                     ),
@@ -83,7 +83,7 @@ class MatrixPage extends ConsumerWidget {
                     child: _Quadrant(
                       title: 'Later',
                       subtitle: 'Neither',
-                      color: AppColors.muted,
+                      color: context.palette.textSecondary,
                       priority: TaskPriority.none,
                       tasks: tasks.where((t) => t.priority == TaskPriority.none).toList(),
                     ),
@@ -161,10 +161,10 @@ class _QuadrantState extends ConsumerState<_Quadrant> {
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: widget.color)),
                 ),
                 Text('${widget.tasks.length}',
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                    style: TextStyle(fontSize: 11, color: context.palette.textSecondary)),
               ],
             ),
-            Text(widget.subtitle, style: const TextStyle(fontSize: 10.5, color: AppColors.muted)),
+            Text(widget.subtitle, style: TextStyle(fontSize: 10.5, color: context.palette.textSecondary)),
             const SizedBox(height: 8),
             Expanded(
               child: ListView(

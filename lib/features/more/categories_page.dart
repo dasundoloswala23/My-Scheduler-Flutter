@@ -58,7 +58,7 @@ class CategoriesPage extends ConsumerWidget {
                       title: Text(c.name,
                           style: TextStyle(fontWeight: FontWeight.w700, color: Color(c.colorValue))),
                       subtitle: Text('${counts[c.id] ?? 0} active tasks',
-                          style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                          style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
                       trailing: PopupMenuButton<String>(
                         onSelected: (v) async {
                           final repo = ref.read(repoProvider);

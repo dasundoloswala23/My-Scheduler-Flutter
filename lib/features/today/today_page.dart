@@ -30,7 +30,7 @@ class TodayPage extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
         Text(DateFormat('EEEE, MMMM d').format(now),
-            style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+            style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
         const SizedBox(height: 2),
         Text('${_greeting(now)}, $name',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
@@ -41,11 +41,11 @@ class TodayPage extends ConsumerWidget {
         const SizedBox(height: 22),
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('YOUR DAY', style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+                  Text('YOUR DAY', style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
                   Text('Scheduled', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19)),
                 ],
               ),
@@ -172,7 +172,7 @@ class _TimelineRow extends ConsumerWidget {
             SizedBox(
               width: 44,
               child: Text(DateFormat('HH:mm').format(task.startDateTime!),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted)),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: context.palette.textSecondary)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: 3, right: 10),
@@ -184,7 +184,7 @@ class _TimelineRow extends ConsumerWidget {
               child: Icon(
                 task.completed ? Icons.check_circle : Icons.circle_outlined,
                 size: 20,
-                color: task.completed ? AppColors.success : AppColors.muted,
+                color: task.completed ? context.palette.success : context.palette.textSecondary,
               ),
             ),
             const SizedBox(width: 10),
@@ -196,7 +196,7 @@ class _TimelineRow extends ConsumerWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         decoration: task.completed ? TextDecoration.lineThrough : null,
-                        color: task.completed ? AppColors.muted : null,
+                        color: task.completed ? context.palette.textSecondary : null,
                       )),
                   if (category != null)
                     Text(
@@ -207,7 +207,7 @@ class _TimelineRow extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
+            Icon(Icons.chevron_right, size: 18, color: context.palette.textSecondary),
           ],
         ),
       ),
@@ -231,13 +231,13 @@ class _UpcomingCard extends StatelessWidget {
             Text(DateFormat('dd').format(task.startDateTime!),
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
             Text(DateFormat('MMM').format(task.startDateTime!).toUpperCase(),
-                style: const TextStyle(fontSize: 10, color: AppColors.muted)),
+                style: TextStyle(fontSize: 10, color: context.palette.textSecondary)),
           ],
         ),
         title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(
           '${task.subtasks.length} subtasks · ${DateFormat('h:mm a').format(task.startDateTime!)}',
-          style: const TextStyle(fontSize: 12, color: AppColors.muted),
+          style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
         ),
       ),
     );
@@ -257,7 +257,7 @@ class _EmptyHint extends StatelessWidget {
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Text(text, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+      child: Text(text, style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
     );
   }
 }

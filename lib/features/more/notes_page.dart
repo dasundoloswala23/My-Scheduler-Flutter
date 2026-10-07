@@ -50,7 +50,7 @@ class NotesPage extends ConsumerWidget {
                             : note.body,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.muted),
+                        style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary),
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline, size: 20),

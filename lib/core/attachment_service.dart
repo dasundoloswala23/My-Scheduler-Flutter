@@ -168,10 +168,27 @@ class AttachmentService {
 
   /// The card badge reads a plain count, so the board never has to query each
   /// task's attachment subcollection.
+  ///
+  /// The same write also denormalises a small preview of the first attachment.
+  /// Without it a board of fifty cards would need fifty subcollection reads
+  /// just to draw thumbnails.
   Future<void> _syncCount(String taskId) async {
-    final count = (await _collection(taskId).get()).size;
+    final snapshot = await _collection(taskId).get();
+    final items = snapshot.docs.map(Attachment.fromDoc).toList()
+      ..sort((a, b) => (a.createdAt ?? DateTime(0)).compareTo(b.createdAt ?? DateTime(0)));
+
+    // Prefer an image, so a task with a PDF and a photo shows the photo.
+    final preview = items.where((a) => a.isImage).firstOrNull ?? items.firstOrNull;
+
     await _taskRef(taskId).update({
-      'attachmentCount': count,
+      'attachmentCount': items.length,
+      'attachmentPreview': preview == null
+          ? null
+          : {
+              'mimeType': preview.mimeType,
+              'thumbnailUrl': preview.thumbnailUrl,
+              'fileName': preview.originalFileName,
+            },
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }

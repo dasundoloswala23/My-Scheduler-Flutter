@@ -44,7 +44,7 @@ class WeekPreview extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(6, 0, 6, 10),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today_outlined, size: 15, color: AppColors.muted),
+                Icon(Icons.calendar_today_outlined, size: 15, color: context.palette.textSecondary),
                 const SizedBox(width: 8),
                 Text(
                   DateFormat('MMMM y').format(now),
@@ -124,7 +124,7 @@ class _DayCell extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: isHoliday ? AppColors.danger : AppColors.muted,
+                color: isHoliday ? context.palette.danger : context.palette.textSecondary,
               ),
             ),
             const SizedBox(height: 6),
@@ -144,7 +144,7 @@ class _DayCell extends StatelessWidget {
                   color: isToday
                       ? Colors.white
                       : isHoliday
-                          ? AppColors.danger
+                          ? context.palette.danger
                           : null,
                 ),
               ),
@@ -165,7 +165,7 @@ class _DayCell extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: task.completed
-                            ? AppColors.success
+                            ? context.palette.success
                             : task.categoryId != null && categories[task.categoryId] != null
                                 ? Color(categories[task.categoryId]!.colorValue)
                                 : AppColors.primary,

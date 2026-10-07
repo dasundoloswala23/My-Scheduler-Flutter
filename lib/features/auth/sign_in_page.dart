@@ -93,7 +93,7 @@ class _SignInPageState extends State<SignInPage> {
                     child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 32),
                   ),
                   const SizedBox(height: 20),
-                  Text('MY SCHEDULER', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: AppColors.muted)),
+                  Text('MY SCHEDULER', style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.4, color: context.palette.textSecondary)),
                   const SizedBox(height: 4),
                   Text(_signUp ? 'Create account' : 'Welcome back', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 28),
@@ -101,7 +101,7 @@ class _SignInPageState extends State<SignInPage> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(color: const Color(0xFFFDECEC), borderRadius: BorderRadius.circular(12)),
-                      child: Text(_error!, style: const TextStyle(color: AppColors.danger)),
+                      child: Text(_error!, style: TextStyle(color: context.palette.danger)),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -152,7 +152,7 @@ class _SignInPageState extends State<SignInPage> {
                   const SizedBox(height: 20),
                   Row(children: [
                     const Expanded(child: Divider()),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('or', style: TextStyle(color: AppColors.muted))),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('or', style: TextStyle(color: context.palette.textSecondary))),
                     const Expanded(child: Divider()),
                   ]),
                   const SizedBox(height: 20),

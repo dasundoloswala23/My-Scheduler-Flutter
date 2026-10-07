@@ -31,8 +31,8 @@ class MorePage extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
-        const Text('MY SCHEDULER',
-            style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+        Text('MY SCHEDULER',
+            style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
         Text('More', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 16),
         Card(
@@ -48,7 +48,7 @@ class MorePage extends ConsumerWidget {
             ),
             title: Text(user?.displayName ?? 'My account',
                 style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text(user?.email ?? '', style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+            subtitle: Text(user?.email ?? '', style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _open(context, const SettingsPage()),
           ),
@@ -78,14 +78,14 @@ class MorePage extends ConsumerWidget {
             ),
             _Tile(
               icon: Icons.track_changes,
-              color: AppColors.amber,
+              color: context.palette.warning,
               title: 'Focus',
               subtitle: '25 min timer',
               onTap: () => _open(context, const FocusPage()),
             ),
             _Tile(
               icon: Icons.grid_view,
-              color: AppColors.success,
+              color: context.palette.success,
               title: 'Matrix',
               subtitle: 'Prioritise',
               onTap: () => _open(context, const MatrixPage()),
@@ -99,14 +99,14 @@ class MorePage extends ConsumerWidget {
             ),
             _Tile(
               icon: Icons.notifications_none,
-              color: AppColors.danger,
+              color: context.palette.danger,
               title: 'Reminders',
               subtitle: '${reminders.where((r) => !r.done).length} upcoming',
               onTap: () => _open(context, const RemindersPage()),
             ),
             _Tile(
               icon: Icons.celebration_outlined,
-              color: AppColors.success,
+              color: context.palette.success,
               title: 'Holidays',
               subtitle: holidays.isEmpty ? 'Add yours' : '${holidays.length} this year',
               onTap: () => _open(context, const HolidaysPage()),
@@ -127,9 +127,25 @@ class MorePage extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.wb_sunny_outlined),
                 title: const Text('Appearance', style: TextStyle(fontWeight: FontWeight.w600)),
-                trailing: Text(themeMode == ThemeMode.dark ? 'Dark' : 'Light',
-                    style: const TextStyle(color: AppColors.muted)),
-                onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+                trailing: Text(
+                  switch (themeMode) {
+                    ThemeMode.dark => 'Dark',
+                    ThemeMode.light => 'Light',
+                    ThemeMode.system => 'System',
+                  },
+                  style: TextStyle(color: context.palette.textSecondary),
+                ),
+                // Cycles System → Light → Dark, matching the three options on
+                // the Settings screen rather than offering only two of them.
+                onTap: () {
+                  final prefs = ref.read(appPreferencesProvider);
+                  final next = switch (prefs.themeMode) {
+                    ThemeMode.system => ThemeMode.light,
+                    ThemeMode.light => ThemeMode.dark,
+                    ThemeMode.dark => ThemeMode.system,
+                  };
+                  ref.read(savePreferencesProvider)(prefs.copyWith(themeMode: next));
+                },
               ),
               const Divider(height: 1),
               ListTile(
@@ -203,11 +219,11 @@ class _Tile extends StatelessWidget {
                     Text(subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                        style: TextStyle(fontSize: 11.5, color: context.palette.textSecondary)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, size: 18, color: AppColors.muted),
+              Icon(Icons.chevron_right, size: 18, color: context.palette.textSecondary),
             ],
           ),
         ),
@@ -241,7 +257,7 @@ class SubPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(eyebrow.toUpperCase(),
-                style: const TextStyle(fontSize: 10, letterSpacing: 1.2, color: AppColors.muted)),
+                style: TextStyle(fontSize: 10, letterSpacing: 1.2, color: context.palette.textSecondary)),
             Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 22)),
           ],
         ),
@@ -280,7 +296,7 @@ class EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: AppColors.primarySoft,
+                color: context.palette.selected,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(icon, color: AppColors.primary, size: 30),
@@ -290,10 +306,10 @@ class EmptyState extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'This focused space is ready for your content, preferences, and workflow.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.muted, fontSize: 13),
+              style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
@@ -301,7 +317,7 @@ class EmptyState extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: Text(actionLabel),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primarySoft,
+                backgroundColor: context.palette.selected,
                 foregroundColor: AppColors.primary,
                 minimumSize: const Size(0, 46),
                 padding: const EdgeInsets.symmetric(horizontal: 20),

@@ -91,7 +91,7 @@ class TaskDetailSheet extends ConsumerWidget {
                   _EditableTitle(task: task),
                   if (task.description.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text(task.description, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.muted)),
+                    Text(task.description, style: theme.textTheme.bodyMedium?.copyWith(color: context.palette.textSecondary)),
                   ],
                   const SizedBox(height: 20),
                   Row(children: [
@@ -270,14 +270,14 @@ class _ReminderRow extends ConsumerWidget {
             const SizedBox(width: 8),
             if (reminders.isNotEmpty)
               Text('${reminders.length}',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 8),
 
         if (reminders.isEmpty)
-          const Text('No reminders yet.',
-              style: TextStyle(color: AppColors.muted, fontSize: 13))
+          Text('No reminders yet.',
+              style: TextStyle(color: context.palette.textSecondary, fontSize: 13))
         else
           for (final reminder in reminders)
             Container(
@@ -292,7 +292,7 @@ class _ReminderRow extends ConsumerWidget {
                   Icon(
                     reminder.enabled ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
                     size: 18,
-                    color: reminder.enabled ? AppColors.primary : AppColors.muted,
+                    color: reminder.enabled ? AppColors.primary : context.palette.textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -301,7 +301,7 @@ class _ReminderRow extends ConsumerWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
-                        color: reminder.enabled ? null : AppColors.muted,
+                        color: reminder.enabled ? null : context.palette.textSecondary,
                       ),
                     ),
                   ),
@@ -341,10 +341,10 @@ class _ReminderRow extends ConsumerWidget {
             ),
 
         if (reminders.isNotEmpty && task.startDateTime == null)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 8),
             child: Text('Set a date and time for these to fire',
-                style: TextStyle(fontSize: 11.5, color: AppColors.amber)),
+                style: TextStyle(fontSize: 11.5, color: context.palette.warning)),
           ),
 
         TextButton.icon(
@@ -423,13 +423,13 @@ class _InfoTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.muted),
+          Icon(icon, size: 18, color: context.palette.textSecondary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 10, letterSpacing: 0.8, color: AppColors.muted)),
+                Text(label, style: TextStyle(fontSize: 10, letterSpacing: 0.8, color: context.palette.textSecondary)),
                 const SizedBox(height: 2),
                 Text(value,
                     maxLines: 1,
@@ -479,10 +479,10 @@ class _SubtaskSectionState extends ConsumerState<_SubtaskSection> {
             Text('Subtasks', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(width: 8),
             Text('${task.doneSubtasks} of ${subtasks.length}',
-                style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                style: TextStyle(color: context.palette.textSecondary, fontSize: 13)),
             const Spacer(),
             Text('${(progress * 100).round()}%',
-                style: const TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: context.palette.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 10),
@@ -491,7 +491,7 @@ class _SubtaskSectionState extends ConsumerState<_SubtaskSection> {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 5,
-            backgroundColor: AppColors.primarySoft,
+            backgroundColor: context.palette.selected,
             valueColor: const AlwaysStoppedAnimation(AppColors.primary),
           ),
         ),
@@ -604,7 +604,7 @@ class _SubtaskTile extends StatelessWidget {
               padding: const EdgeInsets.all(4),
               child: Icon(
                 subtask.done ? Icons.check_circle : Icons.circle_outlined,
-                color: subtask.done ? AppColors.success : AppColors.muted,
+                color: subtask.done ? context.palette.success : context.palette.textSecondary,
                 size: 22,
               ),
             ),
@@ -615,7 +615,7 @@ class _SubtaskTile extends StatelessWidget {
               subtask.title,
               style: TextStyle(
                 decoration: subtask.done ? TextDecoration.lineThrough : null,
-                color: subtask.done ? AppColors.muted : null,
+                color: subtask.done ? context.palette.textSecondary : null,
               ),
             ),
           ),
@@ -629,9 +629,9 @@ class _SubtaskTile extends StatelessWidget {
           ),
           ReorderableDragStartListener(
             index: index,
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Icon(Icons.drag_handle, size: 18, color: AppColors.muted),
+              child: Icon(Icons.drag_handle, size: 18, color: context.palette.textSecondary),
             ),
           ),
         ],
