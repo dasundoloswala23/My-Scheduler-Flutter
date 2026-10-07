@@ -93,7 +93,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
     final seconds = (_remaining % 60).toString().padLeft(2, '0');
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Scheduler App',
       title: 'Focus',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),

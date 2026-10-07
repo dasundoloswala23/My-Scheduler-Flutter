@@ -353,9 +353,10 @@ class _ReminderRow extends ConsumerWidget {
             if (reminders.isEmpty && !await ensureNotificationPermission(context)) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
+                    duration: const Duration(seconds: 8),
                     content: Text('Reminders are saved, but will not appear until '
-                        'notifications are allowed.'),
+                        'notifications are allowed. ${notificationSettingsHint()}'),
                   ),
                 );
               }

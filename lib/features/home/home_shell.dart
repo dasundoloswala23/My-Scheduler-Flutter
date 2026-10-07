@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
@@ -55,8 +56,25 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         _ => const MorePage(),
       };
 
+  void _openSearch() =>
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchPage()));
+
+  /// Desktop shortcuts: Cmd/Ctrl+K searches, Cmd/Ctrl+N adds a task. Nothing
+  /// destructive is bound here; Escape is already handled by dialogs and sheets.
   @override
   Widget build(BuildContext context) {
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): _openSearch,
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): _openSearch,
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true): () => showQuickAddSheet(context),
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true): () => showQuickAddSheet(context),
+      },
+      child: Focus(autofocus: true, child: _buildFrame(context)),
+    );
+  }
+
+  Widget _buildFrame(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width >= 900;
 
     final fab = FloatingActionButton(
@@ -249,7 +267,7 @@ class _Sidebar extends ConsumerWidget {
                     child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 17),
                   ),
                   const SizedBox(width: 10),
-                  const Text('My scheduler',
+                  const Text('My Scheduler App',
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 ],
               ),

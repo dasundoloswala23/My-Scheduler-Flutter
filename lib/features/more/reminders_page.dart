@@ -19,7 +19,7 @@ class RemindersPage extends ConsumerWidget {
     final reminders = ref.watch(remindersProvider).value ?? const <Reminder>[];
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Scheduler App',
       title: 'Reminders',
       floatingActionButton: reminders.isEmpty
           ? null
@@ -123,7 +123,7 @@ class RemindersPage extends ConsumerWidget {
         reminderId: 'standalone',
         taskId: '',
         title: title,
-        body: 'Reminder from My scheduler',
+        body: 'Reminder from My Scheduler App',
         fireAt: remindAt,
         style: NotificationStyle.normal,
       ),

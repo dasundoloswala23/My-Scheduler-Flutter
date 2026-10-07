@@ -38,13 +38,17 @@ class SettingsPage extends ConsumerWidget {
 
     final service = AccountService();
     final user = FirebaseAuth.instance.currentUser;
-    final usesPassword = user?.providerData.any((p) => p.providerId == 'password') ?? false;
+    final providerIds = user?.providerData.map((p) => p.providerId).toSet() ?? {};
 
     try {
-      if (usesPassword) {
+      if (providerIds.contains('password')) {
         final password = await _askPassword(context);
         if (password == null || !context.mounted) return;
         await service.reauthenticateWithPassword(password);
+      } else if (providerIds.contains('apple.com')) {
+        // Apple requires a fresh nonce-bound credential each time, not a
+        // cached one, so this mirrors AuthService.signInWithApple.
+        await service.reauthenticateWithAppleCredential();
       } else {
         await service.reauthenticateWithProvider(GoogleAuthProvider());
       }
@@ -96,7 +100,7 @@ class SettingsPage extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Scheduler App',
       title: 'Settings',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -196,7 +200,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           const Center(
-            child: Text('My scheduler · v1.0.0',
+            child: Text('My Scheduler App · v1.0.0',
                 style: TextStyle(fontSize: 12, color: AppColors.muted)),
           ),
         ],

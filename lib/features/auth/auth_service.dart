@@ -12,7 +12,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 /// Google:
 ///  - Android / iOS: native google_sign_in, then a Firebase credential.
 ///  - Windows / macOS / Web: Firebase's own OAuth popup or redirect flow.
-/// Apple: native Sign in with Apple, iOS only (per the agreed scope).
+/// Apple: native Sign in with Apple, iOS and macOS.
 /// Email/password: works on every platform.
 class AuthService {
   AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
@@ -23,12 +23,16 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
-  /// Apple sign-in is only offered on iOS.
-  bool get supportsAppleSignIn => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  /// Apple sign-in is offered on iOS and macOS, where the native plugin works.
+  bool get supportsAppleSignIn =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS);
 
   bool get _usesNativeGoogle =>
       !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS);
 
   Future<void> signInWithGoogle() async {
     if (_usesNativeGoogle) {

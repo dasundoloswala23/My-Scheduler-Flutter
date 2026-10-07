@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'attachment_service.dart';
 
@@ -48,6 +53,34 @@ class AccountService {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Not signed in.');
     await user.reauthenticateWithProvider(provider);
+  }
+
+  /// Apple accounts can't reuse `reauthenticateWithProvider` on iOS/macOS the
+  /// way Google can: each Sign in with Apple request needs its own nonce, so
+  /// this mirrors `AuthService.signInWithApple` rather than delegating to it.
+  Future<void> reauthenticateWithAppleCredential() async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Not signed in.');
+
+    final rawNonce = _randomNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+      nonce: hashedNonce,
+    );
+
+    final credential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+    );
+    await user.reauthenticateWithCredential(credential);
+  }
+
+  static String _randomNonce([int length = 32]) {
+    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
   }
 
   Future<void> deleteAccount() async {
