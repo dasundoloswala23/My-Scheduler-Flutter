@@ -32,7 +32,7 @@ class MyScheduleApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp(
-      title: 'My scheduler',
+      title: 'My Plan Scheduler',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(brightness: Brightness.light),
       darkTheme: buildAppTheme(brightness: Brightness.dark),

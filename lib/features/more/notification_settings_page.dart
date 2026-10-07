@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../core/notifications/models/notification_preferences.dart';
 import '../../core/notifications/models/reminder.dart';
 import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../task_detail/reminder_picker.dart';
 import '../../core/providers.dart';
 import 'more_page.dart';
 
@@ -21,7 +22,7 @@ class NotificationSettingsPage extends ConsumerWidget {
     final supported = LocalNotificationAdapter().supportsScheduling;
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Plan Scheduler',
       title: 'Notifications',
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -271,7 +272,7 @@ class _Form extends ConsumerWidget {
                 SnackBar(
                   content: Text(granted
                       ? 'Notifications are allowed.'
-                      : 'Notifications are blocked. Enable them in system settings.'),
+                      : 'Notifications are blocked. ${notificationSettingsHint()}'),
                 ),
               );
             },

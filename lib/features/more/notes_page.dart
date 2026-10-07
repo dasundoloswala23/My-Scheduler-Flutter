@@ -16,7 +16,7 @@ class NotesPage extends ConsumerWidget {
     final notes = ref.watch(notesProvider).value ?? const <Note>[];
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Plan Scheduler',
       title: 'Notes',
       floatingActionButton: notes.isEmpty
           ? null

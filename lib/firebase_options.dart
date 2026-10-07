@@ -63,7 +63,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '455014733188',
     projectId: 'myscheduleplanner-e22f3',
     storageBucket: 'myscheduleplanner-e22f3.firebasestorage.app',
-    iosBundleId: 'com.myplanscheduler.app',
+    iosBundleId: 'com.myplanscheduler.diwlara',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -72,7 +72,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '455014733188',
     projectId: 'myscheduleplanner-e22f3',
     storageBucket: 'myscheduleplanner-e22f3.firebasestorage.app',
-    iosBundleId: 'com.myplanscheduler.app',
+    iosBundleId: 'com.myplanscheduler.diwlara',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

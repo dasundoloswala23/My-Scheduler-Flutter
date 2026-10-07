@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -19,6 +20,14 @@ Future<Reminder?> showReminderEditor(
   );
 }
 
+/// Where the user turns notifications back on after denying them.
+String notificationSettingsHint() => switch (defaultTargetPlatform) {
+      TargetPlatform.iOS => 'Open Settings > MyPlanScheduler > Notifications and turn on Allow Notifications.',
+      TargetPlatform.macOS => 'Open System Settings > Notifications > My Plan Scheduler and turn on Allow Notifications.',
+      TargetPlatform.android => 'Open Settings > Apps > MyPlanScheduler > Notifications.',
+      _ => 'Enable notifications for MyPlanScheduler in your system settings.',
+    };
+
 /// Asks the OS for notification permission, explaining why first.
 ///
 /// Called when the user adds their first reminder rather than at launch, so the
@@ -34,7 +43,7 @@ Future<bool> ensureNotificationPermission(BuildContext context) async {
     builder: (context) => AlertDialog(
       title: const Text('Allow notifications?'),
       content: const Text(
-        'My scheduler needs notification permission to alert you before a task '
+        'My Plan Scheduler needs notification permission to alert you before a task '
         'starts. Without it, reminders are saved but never appear.',
       ),
       actions: [

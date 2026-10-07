@@ -25,7 +25,7 @@ class MatrixPage extends ConsumerWidget {
 
     if (tasks.isEmpty) {
       return SubPage(
-        eyebrow: 'My scheduler',
+        eyebrow: 'My Plan Scheduler',
         title: 'Matrix',
         child: EmptyState(
           icon: Icons.grid_view,
@@ -37,7 +37,7 @@ class MatrixPage extends ConsumerWidget {
     }
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Plan Scheduler',
       title: 'Matrix',
       child: Padding(
         padding: const EdgeInsets.all(12),

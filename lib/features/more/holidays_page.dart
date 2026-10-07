@@ -27,7 +27,7 @@ class HolidaysPage extends ConsumerWidget {
     final holidays = ref.watch(holidaysProvider).value ?? const <Holiday>[];
 
     return SubPage(
-      eyebrow: 'My scheduler',
+      eyebrow: 'My Plan Scheduler',
       title: 'Holidays',
       actions: [
         if (holidays.isNotEmpty)

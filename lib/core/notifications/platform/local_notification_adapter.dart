@@ -60,7 +60,8 @@ class LocalNotificationAdapter implements NotificationAdapter {
         actions: [
           DarwinNotificationAction.plain('complete', 'Complete'),
           DarwinNotificationAction.plain('snooze', 'Snooze 10 min'),
-          DarwinNotificationAction.plain('open', 'Open'),
+          DarwinNotificationAction.plain('open', 'Open',
+              options: {DarwinNotificationActionOption.foreground}),
         ],
         options: const {DarwinNotificationCategoryOption.hiddenPreviewShowTitle},
       ),
@@ -81,8 +82,8 @@ class LocalNotificationAdapter implements NotificationAdapter {
         notificationCategories: darwinCategories,
       ),
       windows: const WindowsInitializationSettings(
-        appName: 'My scheduler',
-        appUserModelId: 'com.myplanscheduler.app',
+        appName: 'My Plan Scheduler',
+        appUserModelId: 'com.myplanscheduler.diwlara',
         guid: '6f2a1c90-4f1e-4a2b-9d3c-7e5b8a0c1d22',
       ),
     );
@@ -169,9 +170,16 @@ class LocalNotificationAdapter implements NotificationAdapter {
     final android = await _plugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.areNotificationsEnabled();
-    // iOS and macOS expose no synchronous check through the plugin, so assume
-    // granted and let the OS decide at delivery time.
-    return android ?? true;
+    if (android != null) return android;
+    // Asks iOS/macOS for the current authorisation without prompting, so a
+    // denial made in Settings is noticed and explained.
+    final ios = await _plugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+        ?.checkPermissions();
+    final macos = await _plugin
+        .resolvePlatformSpecificImplementation<MacOSFlutterLocalNotificationsPlugin>()
+        ?.checkPermissions();
+    return (ios ?? macos)?.isEnabled ?? true;
   }
 
   @override

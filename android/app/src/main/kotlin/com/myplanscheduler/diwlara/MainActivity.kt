@@ -1,4 +1,4 @@
-package com.myplanscheduler.app
+package com.myplanscheduler.diwlara
 
 import io.flutter.embedding.android.FlutterActivity
 
