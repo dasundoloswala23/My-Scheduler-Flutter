@@ -100,7 +100,7 @@ class SettingsPage extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return SubPage(
-      eyebrow: 'My Plan Scheduler',
+      eyebrow: 'My Scheduler App',
       title: 'Settings',
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -200,7 +200,7 @@ class SettingsPage extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           const Center(
-            child: Text('My Plan Scheduler · v1.0.0',
+            child: Text('My Scheduler App · v1.0.0',
                 style: TextStyle(fontSize: 12, color: AppColors.muted)),
           ),
         ],

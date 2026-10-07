@@ -22,7 +22,7 @@ class NotificationSettingsPage extends ConsumerWidget {
     final supported = LocalNotificationAdapter().supportsScheduling;
 
     return SubPage(
-      eyebrow: 'My Plan Scheduler',
+      eyebrow: 'My Scheduler App',
       title: 'Notifications',
       child: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),

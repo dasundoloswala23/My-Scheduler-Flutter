@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Credentials. Service-account keys grant full admin access to the Firebase
+# project and bypass every security rule, so they must never be committed.
+# (GoogleService-Info.plist / google-services.json are deliberately NOT listed:
+# they are not secrets and ship inside the app binary.)
+*-adminsdk-*.json
+service-account*.json
+serviceAccountKey*.json
+*.pem
+*.p12

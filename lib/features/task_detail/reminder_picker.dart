@@ -23,7 +23,7 @@ Future<Reminder?> showReminderEditor(
 /// Where the user turns notifications back on after denying them.
 String notificationSettingsHint() => switch (defaultTargetPlatform) {
       TargetPlatform.iOS => 'Open Settings > MyPlanScheduler > Notifications and turn on Allow Notifications.',
-      TargetPlatform.macOS => 'Open System Settings > Notifications > My Plan Scheduler and turn on Allow Notifications.',
+      TargetPlatform.macOS => 'Open System Settings > Notifications > My Scheduler App and turn on Allow Notifications.',
       TargetPlatform.android => 'Open Settings > Apps > MyPlanScheduler > Notifications.',
       _ => 'Enable notifications for MyPlanScheduler in your system settings.',
     };
@@ -43,7 +43,7 @@ Future<bool> ensureNotificationPermission(BuildContext context) async {
     builder: (context) => AlertDialog(
       title: const Text('Allow notifications?'),
       content: const Text(
-        'My Plan Scheduler needs notification permission to alert you before a task '
+        'My Scheduler App needs notification permission to alert you before a task '
         'starts. Without it, reminders are saved but never appear.',
       ),
       actions: [

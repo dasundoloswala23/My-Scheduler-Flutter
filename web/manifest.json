@@ -1,6 +1,6 @@
 {
-    "name": "My Plan Scheduler",
-    "short_name": "My Plan Scheduler",
+    "name": "My Scheduler App",
+    "short_name": "My Scheduler App",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

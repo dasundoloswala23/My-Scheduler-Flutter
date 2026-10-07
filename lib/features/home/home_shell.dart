@@ -267,7 +267,7 @@ class _Sidebar extends ConsumerWidget {
                     child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 17),
                   ),
                   const SizedBox(width: 10),
-                  const Text('My Plan Scheduler',
+                  const Text('My Scheduler App',
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 ],
               ),

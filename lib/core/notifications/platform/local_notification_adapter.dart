@@ -82,8 +82,8 @@ class LocalNotificationAdapter implements NotificationAdapter {
         notificationCategories: darwinCategories,
       ),
       windows: const WindowsInitializationSettings(
-        appName: 'My Plan Scheduler',
-        appUserModelId: 'com.myplanscheduler.diwlara',
+        appName: 'My Scheduler App',
+        appUserModelId: 'com.myplanscheduler.app',
         guid: '6f2a1c90-4f1e-4a2b-9d3c-7e5b8a0c1d22',
       ),
     );

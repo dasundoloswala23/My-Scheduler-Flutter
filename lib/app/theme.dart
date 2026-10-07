@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Colour tokens taken from the FlowBoard screenshots (renamed to My Plan Scheduler).
+/// Colour tokens taken from the FlowBoard screenshots (renamed to My Scheduler App).
 class AppColors {
   static const primary = Color(0xFF6C5CE7);
   static const primarySoft = Color(0xFFEDE9FF);
