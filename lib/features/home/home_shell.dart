@@ -9,6 +9,7 @@ import '../../core/providers.dart';
 import '../boards/boards_page.dart';
 import '../calendar/calendar_page.dart';
 import '../inbox/inbox_page.dart';
+import '../flows/flows_page.dart';
 import 'lazy_indexed_stack.dart';
 import '../more/more_page.dart';
 import '../more/reminders_page.dart';
@@ -440,6 +441,14 @@ class _Sidebar extends ConsumerWidget {
                 selected: i == index,
                 onTap: () => onSelect(i),
               ),
+            _SidebarItem(
+              label: 'Project Flows',
+              icon: Icons.rocket_launch_outlined,
+              selected: false,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ProjectFlowsPage()),
+              ),
+            ),
             const Divider(height: 24),
             Padding(
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),

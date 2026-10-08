@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../app/theme.dart';
 import '../../core/link_preview.dart';
+import '../../core/flows/flow_providers.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import '../../models/task.dart';
@@ -138,6 +139,8 @@ class _TaskCardState extends ConsumerState<TaskCard> {
       widget.task.subtasks.isNotEmpty ||
       widget.task.attachments.isNotEmpty ||
       widget.task.attachmentCount > 0 ||
+      widget.task.recurrence != Recurrence.none ||
+      ref.watch(taskFlowBadgeProvider).containsKey(widget.task.id) ||
       widget.task.effectiveReminders.isNotEmpty;
 }
 
@@ -508,12 +511,12 @@ class _LinkPreviewTile extends StatelessWidget {
   }
 }
 
-class _MetaRow extends StatelessWidget {
+class _MetaRow extends ConsumerWidget {
   const _MetaRow({required this.task});
   final Task task;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
     final items = <Widget>[];
 
@@ -549,6 +552,16 @@ class _MetaRow extends StatelessWidget {
 
     if (task.recurrence != Recurrence.none) {
       items.add(_Meta(icon: Icons.repeat, label: task.recurrence.label));
+    }
+
+    // A small badge, only for a task that belongs to a Project Flow.
+    final flow = ref.watch(taskFlowBadgeProvider)[task.id];
+    if (flow != null) {
+      items.add(_Meta(
+        icon: Icons.rocket_launch_outlined,
+        label: 'Flow ${flow.done}/${flow.total}',
+        color: AppColors.primary,
+      ));
     }
 
     final reminders = task.effectiveReminders.where((r) => r.enabled).toList();

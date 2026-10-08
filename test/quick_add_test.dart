@@ -4,18 +4,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myschedule/app/theme.dart';
+import 'package:myschedule/core/flows/flow_providers.dart';
 import 'package:myschedule/core/notifications/models/notification_preferences.dart';
+import 'package:myschedule/models/project_flow.dart';
 import 'package:myschedule/core/preferences/app_preferences.dart';
 import 'package:myschedule/core/providers.dart';
+import 'package:myschedule/core/flows/flow_repository.dart';
 import 'package:myschedule/core/repository.dart';
 import 'package:myschedule/features/quick_add/quick_add_logic.dart';
 import 'package:myschedule/features/quick_add/quick_add_sheet.dart';
 import 'package:myschedule/models/collections.dart';
 import 'package:myschedule/models/task.dart';
 
+class _FakeFlows extends Fake implements FlowRepo {
+  final linked = <String>[];
+
+  @override
+  Future<void> linkTask({
+    required String flowId,
+    required String stageId,
+    required String taskId,
+  }) async =>
+      linked.add('$flowId/$stageId/$taskId');
+}
+
 /// A repository that records what it is asked to save and touches no Firebase.
 class FakeRepo extends Fake implements Repo {
   final List<Task> created = [];
+  final _flows = _FakeFlows();
+
+  @override
+  FlowRepo get flows => _flows;
+
+  List<String> get linked => _flows.linked;
 
   /// When set, `createTask` waits on it, so a test can tap Save again while the
   /// first save is still in flight, which is how a real double tap behaves.
@@ -38,6 +59,8 @@ Future<FakeRepo> _openQuickAdd(
   double keyboard = 0,
   Brightness brightness = Brightness.light,
   DateTime? date,
+  List<ProjectFlow> flows = const [],
+  List<FlowStage> stages = const [],
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -56,6 +79,8 @@ Future<FakeRepo> _openQuickAdd(
         boardsProvider.overrideWith((ref) => Stream.value(const <Board>[])),
         listsProvider.overrideWith((ref) => Stream.value(const <TaskList>[])),
         tasksProvider.overrideWithValue(const AsyncData(<Task>[])),
+        flowsProvider.overrideWith((ref) => Stream.value(flows)),
+        flowStagesProvider.overrideWith((ref) => Stream.value(stages)),
       ],
       child: MaterialApp(
         theme: buildAppTheme(brightness: brightness),
@@ -369,6 +394,33 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.created.single.recurrence, Recurrence.weekdays);
+    });
+
+    testWidgets('a task added to a flow stage is linked to it, not copied', (tester) async {
+      final repo = await _openQuickAdd(
+        tester,
+        date: DateTime(2030, 10, 8),
+        flows: const [ProjectFlow(id: 'f1', name: 'Launch app')],
+        stages: const [FlowStage(id: 's1', flowId: 'f1', title: 'Development')],
+      );
+      await tester.enterText(find.byType(TextField).first, 'Implement Google Sign-In');
+      await tester.ensureVisible(find.text('Project Flow'));
+      await tester.tap(find.text('Project Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Development'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Launch app · Development'), findsOneWidget);
+
+      await tester.tap(_save);
+      await tester.pumpAndSettle();
+
+      expect(repo.created, hasLength(1));
+      expect(repo.linked, ['f1/s1/task-1']);
+    });
+
+    testWidgets('with no flows there is no Project Flow row', (tester) async {
+      await _openQuickAdd(tester);
+      expect(find.text('Project Flow'), findsNothing);
     });
 
     testWidgets('without a date there is nothing to repeat from, so no Repeat row',

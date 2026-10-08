@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:myschedule/app/theme.dart';
+import 'package:myschedule/core/flows/flow_providers.dart';
 import 'package:myschedule/core/preferences/app_preferences.dart';
 import 'package:myschedule/core/providers.dart';
 import 'package:myschedule/features/boards/task_card.dart';
@@ -28,11 +29,13 @@ Future<void> _pumpCard(
   Task task, {
   AppPreferences preferences = const AppPreferences(),
   Brightness brightness = Brightness.light,
+  Map<String, ({int done, int total})> flowBadges = const {},
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         appPreferencesProvider.overrideWithValue(preferences),
+        taskFlowBadgeProvider.overrideWithValue(flowBadges),
         categoryByIdProvider.overrideWithValue(const {
           'c1': Category(id: 'c1', name: 'YouTube', colorValue: 0xFF6C5CE7),
         }),
@@ -53,6 +56,29 @@ void main() {
     await _pumpCard(tester, _task());
     expect(find.text('Create Kitty Meow Video'), findsOneWidget);
     expect(find.text('YouTube'), findsOneWidget);
+  });
+
+  group('Project Flow badge', () {
+    testWidgets('a task in a flow shows a small Flow 4/9 badge', (tester) async {
+      await _pumpCard(tester, _task(), flowBadges: {'t1': (done: 4, total: 9)});
+      expect(find.text('Flow 4/9'), findsOneWidget);
+    });
+
+    testWidgets('a repeating task with nothing else still shows its repeat chip',
+        (tester) async {
+      await _pumpCard(tester, _task().copyWith(recurrence: Recurrence.weekly));
+      expect(find.text('Weekly'), findsOneWidget);
+    });
+
+    testWidgets('a task not in a flow shows no badge', (tester) async {
+      await _pumpCard(tester, _task());
+      expect(find.textContaining('Flow'), findsNothing);
+    });
+
+    testWidgets('a badge belongs to its own task only', (tester) async {
+      await _pumpCard(tester, _task(), flowBadges: {'other': (done: 1, total: 2)});
+      expect(find.textContaining('Flow'), findsNothing);
+    });
   });
 
   group('subtasks on the card front', () {

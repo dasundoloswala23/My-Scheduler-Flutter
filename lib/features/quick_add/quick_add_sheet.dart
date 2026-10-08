@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../app/theme.dart';
+import '../../core/flows/flow_providers.dart';
 import '../../core/notifications/models/notification_preferences.dart';
 import '../../core/notifications/models/reminder.dart' as task_reminder;
 import '../../core/notifications/models/reminder_sound.dart';
@@ -16,6 +17,7 @@ import '../../core/notifications/scheduling/reminder_calculator.dart';
 import '../../core/position.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
+import '../../models/project_flow.dart';
 import '../../models/task.dart';
 import '../task_detail/reminder_alert_options.dart';
 import '../task_detail/reminder_picker.dart';
@@ -102,6 +104,10 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
   int _durationMinutes = kDefaultDurationMinutes;
   TaskPriority? _priority;
   Recurrence _recurrence = Recurrence.none;
+
+  /// The Project Flow stage this task will be linked to, if the user picked one.
+  FlowStage? _flowStage;
+  String? _flowName;
 
   final List<task_reminder.Reminder> _reminders = [];
   bool _defaultReminderApplied = false;
@@ -213,6 +219,47 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       alertMode: prefs.defaultAlertMode,
       createdAt: DateTime.now(),
     ));
+  }
+
+  Future<void> _pickFlowStage() async {
+    final flows = (ref.read(flowsProvider).value ?? const <ProjectFlow>[])
+        .where((f) => f.status == FlowStatus.active || f.status == FlowStatus.paused)
+        .toList();
+    final stages = ref.read(flowStagesProvider).value ?? const <FlowStage>[];
+
+    final chosen = await showModalBottomSheet<(FlowStage?, String?)>(
+      context: context,
+      isScrollControlled: true,
+      builder: (c) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            ListTile(
+              title: const Text('None'),
+              onTap: () => Navigator.pop(c, (null, null)),
+            ),
+            for (final f in flows) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(f.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              for (final s in stages.where((s) => s.flowId == f.id))
+                ListTile(
+                  dense: true,
+                  title: Text(s.title),
+                  onTap: () => Navigator.pop(c, (s, f.name)),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) {
+      setState(() {
+        _flowStage = chosen.$1;
+        _flowName = chosen.$2;
+      });
+    }
   }
 
   Future<void> _pickRecurrence() async {
@@ -449,6 +496,18 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
               // createTask re-keys these to the new task and schedules them.
               reminders: List.of(_reminders),
             ));
+
+            // A flow link needs the task to exist too. A failed link must not undo
+            // the task, which is already saved.
+            final stage = _flowStage;
+            if (stage != null) {
+              try {
+                await repo.flows
+                    .linkTask(flowId: stage.flowId, stageId: stage.id, taskId: id);
+              } catch (e) {
+                debugPrint('Could not link new task to its flow: $e');
+              }
+            }
 
             // Attachments need the task to exist, so they follow it. A failed
             // upload must not undo the task, so each is tried on its own.
@@ -716,6 +775,16 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
                           setState(() => _categoryId = chosen?.id);
                         },
                       ),
+                      // Both are watched so the stages are loaded by the time the
+                      // picker opens, not read cold when it does.
+                      if ((ref.watch(flowsProvider).value ?? const <ProjectFlow>[]).isNotEmpty &&
+                          ref.watch(flowStagesProvider).hasValue)
+                        _Row(
+                          icon: Icons.rocket_launch_outlined,
+                          label: 'Project Flow',
+                          value: _flowStage == null ? 'None' : '$_flowName · ${_flowStage!.title}',
+                          onTap: _pickFlowStage,
+                        ),
                       _Row(
                         icon: Icons.flag_outlined,
                         label: 'Priority',

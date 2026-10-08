@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import '../../models/task.dart';
+import '../flows/flows_page.dart';
 import 'categories_page.dart';
 import 'focus_page.dart';
 import 'holidays_page.dart';
@@ -62,6 +63,13 @@ class MorePage extends ConsumerWidget {
           crossAxisSpacing: 12,
           childAspectRatio: 2.4,
           children: [
+            _Tile(
+              icon: Icons.rocket_launch_outlined,
+              color: AppColors.primary,
+              title: 'Project Flows',
+              subtitle: 'Plan in stages',
+              onTap: () => _open(context, const ProjectFlowsPage()),
+            ),
             _Tile(
               icon: Icons.label_outline,
               color: AppColors.primary,
