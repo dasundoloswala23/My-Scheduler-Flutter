@@ -11,7 +11,7 @@
       "android": {
         "default": {
           "projectId": "myscheduleplanner-e22f3",
-          "appId": "1:455014733188:android:916a88398cd61538a1f9d1",
+          "appId": "1:455014733188:android:469e8f6c75823770a1f9d1",
           "fileOutput": "android/app/google-services.json"
         }
       },
@@ -19,7 +19,7 @@
         "lib/firebase_options.dart": {
           "projectId": "myscheduleplanner-e22f3",
           "configurations": {
-            "android": "1:455014733188:android:916a88398cd61538a1f9d1",
+            "android": "1:455014733188:android:469e8f6c75823770a1f9d1",
             "ios": "1:455014733188:ios:94eedd0bc0c749d2a1f9d1",
             "macos": "1:455014733188:ios:94eedd0bc0c749d2a1f9d1",
             "web": "1:455014733188:web:095513f7ef0303e0a1f9d1",
