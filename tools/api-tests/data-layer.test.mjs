@@ -328,7 +328,8 @@ check("Read categories back", (await listDocs(`users/${uid}/categories`)).length
 // 4a. A drag-and-drop move, done the way the apps do it: read the current
 // version inside a transaction, write the new list/position, bump the version.
 const moving = tasks.find((t) => t.title === "Q4 content calendar");
-const targetList = lists.find((l) => l.name === "Done");
+// The completed list was called "Done" before the Complete list existed.
+const targetList = lists.find((l) => l.name === "Complete" || l.name === "Done");
 const docPath = `projects/${PROJECT}/databases/(default)/documents/users/${uid}/tasks/${moving.id}`;
 
 const txRes = await fetch(

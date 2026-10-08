@@ -6,7 +6,7 @@
  */
 import { spawn } from "node:child_process";
 
-const SUITES = ["data-layer.test.mjs", "storage.test.mjs"];
+const SUITES = ["data-layer.test.mjs", "storage.test.mjs", "rules-live.test.mjs"];
 
 function run(file) {
   return new Promise((resolve) => {

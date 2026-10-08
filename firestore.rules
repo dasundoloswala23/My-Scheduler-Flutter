@@ -1,10 +1,154 @@
 rules_version = '2';
 
+// Everything a person owns lives under users/{uid}. Two things are enforced:
+//
+//   1. OWNERSHIP: only the signed-in user whose uid is in the path can read or
+//      write a document. Signed-out requests and other users are refused.
+//   2. SHAPE: writes to the main collections must have sensible types and
+//      sizes (a title is a string, a list is a list and not enormous, a flow's
+//      mode is one of the known modes). Unknown extra fields are allowed so
+//      older and newer app versions can coexist.
+//
+// There is deliberately no catch-all under users/{uid}: a catch-all would
+// allow every write that a specific rule below refuses.
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Every document lives under users/{uid}; only that signed-in user can touch it.
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+    function owns(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Optional string, at most `max` characters.
+    function str(d, k, max) {
+      return !(k in d) || d[k] == null || (d[k] is string && d[k].size() <= max);
+    }
+
+    // Present string, 1 to `max` characters.
+    function reqStr(d, k, max) {
+      return k in d && d[k] is string && d[k].size() >= 1 && d[k].size() <= max;
+    }
+
+    // Optional list, at most `max` entries.
+    function lst(d, k, max) {
+      return !(k in d) || d[k] == null || (d[k] is list && d[k].size() <= max);
+    }
+
+    function bool_(d, k) {
+      return !(k in d) || d[k] == null || d[k] is bool;
+    }
+
+    function num(d, k) {
+      return !(k in d) || d[k] == null || d[k] is number;
+    }
+
+    // Optional value that must be one of `allowed`.
+    function oneOf(d, k, allowed) {
+      return !(k in d) || d[k] == null || d[k] in allowed;
+    }
+
+    function validTask(d) {
+      return str(d, 'title', 500)
+          && str(d, 'description', 20000)
+          && bool_(d, 'completed')
+          && bool_(d, 'isAllDay')
+          && num(d, 'position')
+          && lst(d, 'subtasks', 500)
+          && lst(d, 'reminders', 100)
+          && lst(d, 'attachments', 200);
+    }
+
+    function validBoard(d) {
+      return str(d, 'name', 200) && num(d, 'position');
+    }
+
+    function validList(d) {
+      return str(d, 'name', 200) && str(d, 'boardId', 200) && num(d, 'position');
+    }
+
+    function validFlow(d) {
+      return reqStr(d, 'name', 200)
+          && str(d, 'description', 5000)
+          && oneOf(d, 'mode', ['sequential', 'flexible', 'dependency'])
+          && oneOf(d, 'status', ['active', 'completed', 'paused', 'archived'])
+          && num(d, 'progress');
+    }
+
+    function validStage(d) {
+      return reqStr(d, 'flowId', 200)
+          && str(d, 'title', 300)
+          && str(d, 'description', 5000)
+          && bool_(d, 'isRequired')
+          && bool_(d, 'autoCompleteWhenTasksDone')
+          && lst(d, 'dependencyStageIds', 100)
+          && oneOf(d, 'manualStatus', ['completed', 'blocked'])
+          && oneOf(d, 'status', ['locked', 'upcoming', 'active', 'completed', 'blocked'])
+          && num(d, 'position');
+    }
+
+    function validLink(d) {
+      return reqStr(d, 'flowId', 200)
+          && reqStr(d, 'stageId', 200)
+          && reqStr(d, 'taskId', 200);
+    }
+
+    // The user document holds preferences. It is small by nature.
+    match /users/{uid} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid);
+    }
+
+    match /users/{uid}/tasks/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validTask(request.resource.data);
+
+      // Metadata for files in Storage; the files themselves are guarded by
+      // storage.rules.
+      match /attachments/{attachmentId} {
+        allow read, write: if owns(uid);
+      }
+    }
+
+    match /users/{uid}/boards/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validBoard(request.resource.data);
+    }
+
+    match /users/{uid}/lists/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validList(request.resource.data);
+    }
+
+    match /users/{uid}/projectFlows/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validFlow(request.resource.data);
+    }
+
+    match /users/{uid}/flowStages/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validStage(request.resource.data);
+    }
+
+    match /users/{uid}/flowTaskLinks/{id} {
+      allow read, delete: if owns(uid);
+      allow create, update: if owns(uid) && validLink(request.resource.data);
+    }
+
+    // Collections with no shape rules of their own yet. Listed one by one,
+    // never as a wildcard, so a new collection is closed until it is added here.
+    match /users/{uid}/categories/{id} {
+      allow read, write: if owns(uid);
+    }
+    match /users/{uid}/notes/{id} {
+      allow read, write: if owns(uid);
+    }
+    match /users/{uid}/reminders/{id} {
+      allow read, write: if owns(uid);
+    }
+    match /users/{uid}/holidays/{id} {
+      allow read, write: if owns(uid);
+    }
+    match /users/{uid}/focusSessions/{id} {
+      allow read, write: if owns(uid);
     }
   }
 }
