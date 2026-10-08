@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import '../models/collections.dart';
 import '../models/task.dart';
 import 'attachment_service.dart';
+import 'flows/flow_repository.dart';
 import 'list_order.dart';
 import 'position.dart';
 import 'recurrence.dart';
@@ -33,6 +34,20 @@ class Repo {
   final String _uid;
 
   DocumentReference<Json> get _user => _db.collection('users').doc(_uid);
+
+  /// Project Flows: stages and the links between them and this repo's tasks.
+  late final FlowRepo flows = FlowRepo(db: _db, uid: _uid);
+
+  /// Brings the flow a task belongs to up to date after the task changed.
+  /// Failure is isolated: a flow that cannot be refreshed now is refreshed by
+  /// the next change, and the screens derive their state live anyway.
+  Future<void> _syncFlowFor(String taskId) async {
+    try {
+      await flows.recomputeForTask(taskId);
+    } catch (e) {
+      debugPrint('Could not update the flow for task $taskId: $e');
+    }
+  }
 
   CollectionReference<Json> get tasks => _user.collection('tasks');
   CollectionReference<Json> get boards => _user.collection('boards');
@@ -150,6 +165,13 @@ class Repo {
       // can be retried, an undeletable task cannot be worked around.
     }
     await tasks.doc(id).delete();
+
+    // A deleted task leaves its flow; the stage then counts the tasks it has.
+    try {
+      await flows.unlinkTask(id);
+    } catch (e) {
+      debugPrint('Could not unlink deleted task $id from its flow: $e');
+    }
   }
 
   /// Applies a drag-and-drop move in a transaction.
@@ -323,6 +345,7 @@ class Repo {
 
     batch.update(taskRef, update);
     await batch.commit();
+    await _syncFlowFor(current.id);
 
     // After the commit, so a platform failure never undoes the completion.
     try {
@@ -402,6 +425,7 @@ class Repo {
 
     batch.update(taskRef, update);
     await batch.commit();
+    await _syncFlowFor(task.id);
 
     try {
       if (removed != null) {

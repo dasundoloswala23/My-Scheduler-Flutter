@@ -44,12 +44,10 @@ class AccountService {
     'reminders',
     'holidays',
     'focusSessions',
-    'flowLinks',
+    'projectFlows',
+    'flowStages',
+    'flowTaskLinks',
   ];
-
-  /// Project Flows own a `stages` subcollection that has to go with each one.
-  static const _flowCollection = 'projectFlows';
-  static const _flowStages = 'stages';
 
   Future<void> reauthenticateWithPassword(String password) async {
     final user = _auth.currentUser;
@@ -122,13 +120,8 @@ class AccountService {
       await files.deleteAllFor(task.id);
     }
 
-    // 2. Tasks, flows (with their stages), then everything else under the user.
+    // 2. Tasks, then everything else under the user, flows included.
     await _deleteCollection(userRef.collection('tasks'));
-    final flows = await userRef.collection(_flowCollection).get();
-    for (final flow in flows.docs) {
-      await _deleteCollection(flow.reference.collection(_flowStages));
-    }
-    await _deleteCollection(userRef.collection(_flowCollection));
     for (final name in _collections) {
       await _deleteCollection(userRef.collection(name));
     }

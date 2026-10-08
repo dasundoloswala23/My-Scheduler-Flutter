@@ -19,7 +19,8 @@ const _collections = [
   'holidays',
   'focusSessions',
   'projectFlows',
-  'flowLinks',
+  'flowStages',
+  'flowTaskLinks',
 ];
 
 Future<void> _seed(FakeFirebaseFirestore db, String uid) async {
@@ -30,9 +31,6 @@ Future<void> _seed(FakeFirebaseFirestore db, String uid) async {
       await user.collection(name).doc('$name-$i').set({'n': i});
     }
   }
-  // Subcollections that hang off other documents.
-  await user.collection('projectFlows').doc('projectFlows-0').collection('stages').doc('s1').set({'n': 1});
-  await user.collection('projectFlows').doc('projectFlows-1').collection('stages').doc('s2').set({'n': 2});
 }
 
 Future<int> _countFor(FakeFirebaseFirestore db, String uid) async {
@@ -40,9 +38,6 @@ Future<int> _countFor(FakeFirebaseFirestore db, String uid) async {
   var total = (await user.get()).exists ? 1 : 0;
   for (final name in _collections) {
     total += (await user.collection(name).get()).docs.length;
-  }
-  for (final flow in ['projectFlows-0', 'projectFlows-1']) {
-    total += (await user.collection('projectFlows').doc(flow).collection('stages').get()).docs.length;
   }
   return total;
 }
@@ -69,7 +64,7 @@ void main() {
   AttachmentService attachmentsFor(String uid) =>
       AttachmentService(db: db, storage: _Storage(), uid: uid);
 
-  test('removes every document the user owns, including flow stages', () async {
+  test('removes every document the user owns, including flows, stages and links', () async {
     expect(await _countFor(db, 'alice'), greaterThan(30));
 
     await service.deleteUserData('alice', attachments: attachmentsFor('alice'));
