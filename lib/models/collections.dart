@@ -36,7 +36,14 @@ class Board {
   }
 }
 
-/// A column on a board: Inbox, Todo, In progress, Waiting, Done, Someday, …
+/// The `kind` of the list every board must have, where finished tasks go.
+///
+/// It is identified by this marker and not by its name, so renaming the list, or
+/// a user making their own list called "Complete", never changes which one is
+/// the real one.
+const String kCompleteKind = 'complete';
+
+/// A column on a board: Inbox, Todo, In progress, Waiting, Complete, Someday, …
 class TaskList {
   const TaskList({
     required this.id,
@@ -45,6 +52,7 @@ class TaskList {
     this.position = 0,
     this.colorValue = 0xFF9CA3AF,
     this.isSystem = false,
+    this.kind,
   });
 
   final String id;
@@ -54,6 +62,11 @@ class TaskList {
   final int colorValue;
   final bool isSystem;
 
+  /// Null for an ordinary list; [kCompleteKind] for the board's Complete list.
+  final String? kind;
+
+  bool get isComplete => kind == kCompleteKind;
+
   TaskList copyWith({String? name, double? position, int? colorValue}) => TaskList(
         id: id,
         boardId: boardId,
@@ -61,6 +74,7 @@ class TaskList {
         position: position ?? this.position,
         colorValue: colorValue ?? this.colorValue,
         isSystem: isSystem,
+        kind: kind,
       );
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +83,7 @@ class TaskList {
         'position': position,
         'colorValue': colorValue,
         'isSystem': isSystem,
+        'kind': kind,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -81,6 +96,7 @@ class TaskList {
       position: (json['position'] as num?)?.toDouble() ?? 0,
       colorValue: (json['colorValue'] as num?)?.toInt() ?? 0xFF9CA3AF,
       isSystem: (json['isSystem'] ?? false) as bool,
+      kind: json['kind'] as String?,
     );
   }
 }

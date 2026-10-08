@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/collections.dart' show TaskList;
 import '../models/task.dart';
 import 'providers.dart';
 import 'repository.dart';
@@ -64,22 +65,45 @@ class MoveController {
     final overrides = ref.read(taskOverridesProvider.notifier);
     final repo = ref.read(repoProvider);
 
+    // Dropping a card onto the Complete list completes it, and dragging a
+    // completed card out of that list re-opens it. Both go through the same code
+    // as ticking the circle, so a task ends up in the same state either way: its
+    // reminders cancelled or restored, and a repeating task's next occurrence
+    // created or removed.
+    final lists = ref.read(listsProvider).value ?? const <TaskList>[];
+    TaskList? listById(String? id) => lists.where((l) => l.id == id).firstOrNull;
+    final target = move.clearList ? null : listById(move.listId);
+    final source = listById(task.listId);
+    final completing = !task.completed && target != null && target.isComplete;
+    final reopening =
+        task.completed && source != null && source.isComplete && target != null && !target.isComplete;
+
     // 1. Move it on screen straight away.
-    overrides.put(move.applyTo(task));
+    var optimistic = move.applyTo(task);
+    if (completing) optimistic = optimistic.copyWith(completed: true);
+    if (reopening) optimistic = optimistic.copyWith(completed: false);
+    overrides.put(optimistic);
 
     try {
-      // 2. Write it, in a transaction that bumps `version`.
-      await repo.moveTask(
-        taskId: task.id,
-        expectedVersion: task.version,
-        position: move.position,
-        listId: move.clearList ? null : (move.listId ?? task.listId),
-        boardId: move.boardId ?? task.boardId,
-        categoryId: move.categoryId ?? task.categoryId,
-        startDateTime: move.clearSchedule ? null : (move.startDateTime ?? task.startDateTime),
-        endDateTime: move.clearSchedule ? null : (move.endDateTime ?? task.endDateTime),
-        priority: move.priority,
-      );
+      // 2. Write it.
+      if (completing) {
+        await repo.completeTask(task, position: move.position);
+      } else if (reopening) {
+        await repo.reopenTask(task, toListId: move.listId, position: move.position);
+      } else {
+        // An ordinary move, in a transaction that bumps `version`.
+        await repo.moveTask(
+          taskId: task.id,
+          expectedVersion: task.version,
+          position: move.position,
+          listId: move.clearList ? null : (move.listId ?? task.listId),
+          boardId: move.boardId ?? task.boardId,
+          categoryId: move.categoryId ?? task.categoryId,
+          startDateTime: move.clearSchedule ? null : (move.startDateTime ?? task.startDateTime),
+          endDateTime: move.clearSchedule ? null : (move.endDateTime ?? task.endDateTime),
+          priority: move.priority,
+        );
+      }
 
       // The server stream now carries the change, so drop the override.
       overrides.clear(task.id);
@@ -90,7 +114,10 @@ class MoveController {
           SnackBar(
             content: Text(description),
             duration: const Duration(seconds: 5),
-            action: SnackBarAction(label: 'UNDO', onPressed: () => _undo(task)),
+            action: SnackBarAction(
+              label: 'UNDO',
+              onPressed: () => _undo(task, wasCompleting: completing, wasReopening: reopening),
+            ),
           ),
         );
       }
@@ -110,10 +137,26 @@ class MoveController {
     }
   }
 
-  /// Writes the task's previous field values back.
-  Future<void> _undo(Task previous) async {
+  /// Puts the task back as it was.
+  ///
+  /// Undoing a completion has to re-open the task, not just move it: moving it
+  /// back to its old list would leave it marked completed.
+  Future<void> _undo(
+    Task previous, {
+    bool wasCompleting = false,
+    bool wasReopening = false,
+  }) async {
     try {
-      await ref.read(repoProvider).moveTask(
+      final repo = ref.read(repoProvider);
+      if (wasCompleting) {
+        await repo.reopenTask(previous, toListId: previous.listId, position: previous.position);
+        return;
+      }
+      if (wasReopening) {
+        await repo.completeTask(previous, position: previous.position);
+        return;
+      }
+      await repo.moveTask(
             taskId: previous.id,
             expectedVersion: previous.version,
             position: previous.position,

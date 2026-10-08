@@ -1,4 +1,5 @@
 import '../../../models/task.dart';
+import '../../recurrence.dart';
 import '../models/notification_preferences.dart';
 import '../models/reminder.dart';
 
@@ -232,7 +233,7 @@ class ReminderCalculator {
     final out = <DateTime>[start];
     var cursor = start;
     for (var i = 1; i < recurringWindow; i++) {
-      final next = nextRecurrence(cursor, task.recurrence);
+      final next = nextOccurrence(cursor, task.recurrence);
       if (next == null) break;
       out.add(next);
       cursor = next;
@@ -272,28 +273,5 @@ class ReminderCalculator {
       hash = (hash * 31 + unit) & 0x3FFFFFFF;
     }
     return hash;
-  }
-}
-
-/// Next date for a repeating task. Kept here so the calculator has no
-/// dependency on the Firestore repository.
-DateTime? nextRecurrence(DateTime from, Recurrence r) {
-  switch (r) {
-    case Recurrence.none:
-      return null;
-    case Recurrence.daily:
-      return from.add(const Duration(days: 1));
-    case Recurrence.weekdays:
-      var next = from.add(const Duration(days: 1));
-      while (next.weekday == DateTime.saturday || next.weekday == DateTime.sunday) {
-        next = next.add(const Duration(days: 1));
-      }
-      return next;
-    case Recurrence.weekly:
-      return from.add(const Duration(days: 7));
-    case Recurrence.monthly:
-      return DateTime(from.year, from.month + 1, from.day, from.hour, from.minute);
-    case Recurrence.yearly:
-      return DateTime(from.year + 1, from.month, from.day, from.hour, from.minute);
   }
 }

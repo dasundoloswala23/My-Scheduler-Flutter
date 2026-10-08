@@ -107,6 +107,8 @@ class Task {
     this.attachments = const [],
     this.attachmentCount = 0,
     this.attachmentPreview,
+    this.completedFromListId,
+    this.spawnedNextTaskId,
     this.createdAt,
     this.updatedAt,
     this.completedAt,
@@ -173,6 +175,15 @@ class Task {
   /// The first attachment, copied onto the task so the board can draw a
   /// thumbnail without a query per card.
   final AttachmentPreview? attachmentPreview;
+
+  /// The list the task was in when it was completed, so un-completing it puts
+  /// it back where it came from instead of leaving it stranded in Complete.
+  final String? completedFromListId;
+
+  /// For a repeating task: the id of the next occurrence created when this one
+  /// was completed. Its presence is what stops a second completion from
+  /// creating a second next occurrence.
+  final String? spawnedNextTaskId;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? completedAt;
@@ -218,6 +229,8 @@ class Task {
     List<String>? attachments,
     int? attachmentCount,
     Object? attachmentPreview = _sentinel,
+    Object? completedFromListId = _sentinel,
+    Object? spawnedNextTaskId = _sentinel,
     DateTime? updatedAt,
     Object? completedAt = _sentinel,
     int? version,
@@ -250,6 +263,12 @@ class Task {
       attachmentPreview: attachmentPreview == _sentinel
           ? this.attachmentPreview
           : attachmentPreview as AttachmentPreview?,
+      completedFromListId: completedFromListId == _sentinel
+          ? this.completedFromListId
+          : completedFromListId as String?,
+      spawnedNextTaskId: spawnedNextTaskId == _sentinel
+          ? this.spawnedNextTaskId
+          : spawnedNextTaskId as String?,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt == _sentinel ? this.completedAt : completedAt as DateTime?,
@@ -273,6 +292,9 @@ class Task {
         startDateTime: startDateTime,
         endDateTime: endDateTime,
         recurrence: recurrence,
+        // copyWithId used to leave this out, so a copy of an all-day task
+        // quietly became a timed one.
+        isAllDay: isAllDay,
         reminderMinutesBefore: reminderMinutesBefore,
         reminderOffsets: reminderOffsets,
         reminders: reminders,
@@ -280,6 +302,8 @@ class Task {
         attachments: attachments,
         attachmentCount: attachmentCount,
         attachmentPreview: attachmentPreview,
+        completedFromListId: completedFromListId,
+        spawnedNextTaskId: spawnedNextTaskId,
         createdAt: createdAt,
         updatedAt: updatedAt,
         completedAt: completedAt,
@@ -308,6 +332,8 @@ class Task {
         'attachments': attachments,
         'attachmentCount': attachmentCount,
         'attachmentPreview': attachmentPreview?.toJson(),
+        'completedFromListId': completedFromListId,
+        'spawnedNextTaskId': spawnedNextTaskId,
         'createdAt': createdAt == null ? FieldValue.serverTimestamp() : Timestamp.fromDate(createdAt!),
         'updatedAt': FieldValue.serverTimestamp(),
         'completedAt': completedAt == null ? null : Timestamp.fromDate(completedAt!),
@@ -351,6 +377,8 @@ class Task {
       attachments: ((json['attachments'] ?? const []) as List).cast<String>(),
       attachmentCount: (json['attachmentCount'] as num?)?.toInt() ?? 0,
       attachmentPreview: AttachmentPreview.fromJson(json['attachmentPreview']),
+      completedFromListId: json['completedFromListId'] as String?,
+      spawnedNextTaskId: json['spawnedNextTaskId'] as String?,
       createdAt: (json['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate(),
       completedAt: (json['completedAt'] as Timestamp?)?.toDate(),
