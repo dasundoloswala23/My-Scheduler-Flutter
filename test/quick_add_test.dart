@@ -354,6 +354,51 @@ void main() {
       expect(task.startDateTime, DateTime(2030, 10, 8));
     });
 
+    testWidgets('a repeat chosen in Quick Add is saved with the task', (tester) async {
+      final repo = await _openQuickAdd(tester, date: DateTime(2030, 10, 8));
+
+      await tester.enterText(find.byType(TextField).first, 'Water plants');
+      await tester.ensureVisible(find.text('Repeat'));
+      await tester.tap(find.text('Repeat'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Weekdays'));
+      await tester.pumpAndSettle();
+      expect(find.text('Weekdays'), findsOneWidget);
+
+      await tester.tap(_save);
+      await tester.pumpAndSettle();
+
+      expect(repo.created.single.recurrence, Recurrence.weekdays);
+    });
+
+    testWidgets('without a date there is nothing to repeat from, so no Repeat row',
+        (tester) async {
+      await _openQuickAdd(tester);
+      expect(find.text('Repeat'), findsNothing);
+    });
+
+    testWidgets('every repeat choice is saved as itself', (tester) async {
+      for (final choice in [
+        ('Daily', Recurrence.daily),
+        ('Weekly', Recurrence.weekly),
+        ('Monthly', Recurrence.monthly),
+        ('Yearly', Recurrence.yearly),
+      ]) {
+        final repo = await _openQuickAdd(tester, date: DateTime(2030, 10, 8));
+        await tester.enterText(find.byType(TextField).first, 'T');
+        await tester.ensureVisible(find.text('Repeat'));
+        await tester.tap(find.text('Repeat'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(choice.$1));
+        await tester.pumpAndSettle();
+        await tester.tap(_save);
+        await tester.pumpAndSettle();
+        expect(repo.created.single.recurrence, choice.$2, reason: choice.$1);
+        // Close any remaining sheet before the next round.
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
     testWidgets('renders in dark mode without a layout error', (tester) async {
       await _openQuickAdd(tester, brightness: Brightness.dark, keyboard: 280);
       await tester.enterText(find.byType(TextField).first, 'Dark');

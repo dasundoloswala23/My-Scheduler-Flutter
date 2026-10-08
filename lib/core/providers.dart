@@ -177,3 +177,10 @@ List<Task> tasksForDay(List<Task> all, DateTime day) => all
         t.startDateTime!.day == day.day)
     .toList()
   ..sort((a, b) => a.startDateTime!.compareTo(b.startDateTime!));
+
+/// [d] as a local calendar date with the time of day dropped.
+DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+/// The calendar day [days] away from [d]. Calendar arithmetic, not +24 hours,
+/// so it stays correct across a daylight-saving change.
+DateTime shiftDay(DateTime d, int days) => DateTime(d.year, d.month, d.day + days);

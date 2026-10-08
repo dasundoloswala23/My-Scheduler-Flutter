@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../app/theme.dart';
 import '../../core/providers.dart';
@@ -66,7 +67,7 @@ class InboxPage extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         if (unsorted.isEmpty)
-          _InboxZero()
+          const _InboxEmpty()
         else
           for (final task in unsorted)
             Card(
@@ -80,20 +81,51 @@ class InboxPage extends ConsumerWidget {
                 ),
                 title: Text(task.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                 subtitle: Text(
-                  categories[task.categoryId]?.name ?? 'Unsorted',
+                  [
+                    categories[task.categoryId]?.name ?? 'No category',
+                    if (task.startDateTime != null)
+                      DateFormat(task.isAllDay ? 'MMM d' : 'MMM d, h:mm a')
+                          .format(task.startDateTime!),
+                    task.priority.label,
+                  ].join('  ·  '),
                   style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
                 ),
                 trailing: TaskMenuButton(task: task),
               ),
             ),
         const SizedBox(height: 16),
-        if (unsorted.isNotEmpty) _InboxZero(),
+        if (unsorted.isNotEmpty) const _InboxZero(),
       ],
     );
   }
 }
 
+class _InboxEmpty extends StatelessWidget {
+  const _InboxEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 40, color: context.palette.textSecondary),
+          const SizedBox(height: 10),
+          const Text('Your inbox is empty',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const SizedBox(height: 4),
+          Text('Tasks you capture without a board or list land here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
 class _InboxZero extends StatelessWidget {
+  const _InboxZero();
+
   @override
   Widget build(BuildContext context) {
     return Row(

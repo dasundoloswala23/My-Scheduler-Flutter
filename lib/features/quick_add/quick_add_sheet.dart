@@ -101,6 +101,7 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
   TimeOfDay? _time;
   int _durationMinutes = kDefaultDurationMinutes;
   TaskPriority? _priority;
+  Recurrence _recurrence = Recurrence.none;
 
   final List<task_reminder.Reminder> _reminders = [];
   bool _defaultReminderApplied = false;
@@ -212,6 +213,26 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
       alertMode: prefs.defaultAlertMode,
       createdAt: DateTime.now(),
     ));
+  }
+
+  Future<void> _pickRecurrence() async {
+    final chosen = await showModalBottomSheet<Recurrence>(
+      context: context,
+      builder: (c) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final r in Recurrence.values)
+              ListTile(
+                title: Text(r.label),
+                trailing: r == _recurrence ? const Icon(Icons.check) : null,
+                onTap: () => Navigator.pop(c, r),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (chosen != null) setState(() => _recurrence = chosen);
   }
 
   Future<void> _pickDuration() async {
@@ -419,6 +440,8 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
               startDateTime: schedule.start,
               endDateTime: schedule.isAllDay ? null : endFor(schedule.start, _durationMinutes),
               isAllDay: schedule.isAllDay,
+              // A repeat needs a date to repeat from; without one it is ignored.
+              recurrence: schedule.isScheduled ? _recurrence : Recurrence.none,
               subtasks: [
                 for (final (i, text) in _subtasks.indexed)
                   Subtask(id: const Uuid().v4(), title: text, position: i.toDouble()),
@@ -638,6 +661,13 @@ class _QuickAddSheetState extends ConsumerState<QuickAddSheet> {
                           label: 'Duration',
                           value: describeDuration(_durationMinutes),
                           onTap: _pickDuration,
+                        ),
+                      if (_isTaskLike && (_time != null || _dateChosen))
+                        _Row(
+                          icon: Icons.repeat,
+                          label: 'Repeat',
+                          value: _recurrence.label,
+                          onTap: _pickRecurrence,
                         ),
                       if (_time != null && validation.startsInPast)
                         Padding(

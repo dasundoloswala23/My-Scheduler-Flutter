@@ -46,11 +46,13 @@ class WeekPreview extends ConsumerWidget {
               children: [
                 Icon(Icons.calendar_today_outlined, size: 15, color: context.palette.textSecondary),
                 const SizedBox(width: 8),
-                Text(
-                  DateFormat('MMMM y').format(now),
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                Expanded(
+                  child: Text(
+                    DateFormat('MMMM y').format(now),
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
                 ),
-                const Spacer(),
                 InkWell(
                   onTap: () => openCalendar(now),
                   borderRadius: BorderRadius.circular(8),

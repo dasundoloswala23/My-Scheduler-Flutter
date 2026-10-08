@@ -10,32 +10,83 @@ import '../task_detail/task_detail_sheet.dart';
 import 'week_preview.dart';
 
 /// Screenshots 12–13: greeting, progress ring, today's timeline, coming up.
-class TodayPage extends ConsumerWidget {
+class TodayPage extends ConsumerStatefulWidget {
   const TodayPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayPage> createState() => _TodayPageState();
+}
+
+class _TodayPageState extends ConsumerState<TodayPage> {
+  /// The day being looked at, as a local calendar date (no time of day).
+  DateTime _day = dateOnly(DateTime.now());
+
+  Future<void> _pickDay() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _day,
+      firstDate: DateTime(_day.year - 5),
+      lastDate: DateTime(_day.year + 10),
+    );
+    if (picked != null) setState(() => _day = dateOnly(picked));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tasks = ref.watch(tasksProvider).value ?? const <Task>[];
     final now = DateTime.now();
-    final today = tasksForDay(tasks, now);
+    final isToday = _isSameDay(_day, now);
+    final today = tasksForDay(tasks, _day);
     final done = today.where((t) => t.completed).length;
     final goal = today.isEmpty ? 8 : today.length;
-    final name = FirebaseAuth.instance.currentUser?.displayName?.split(' ').first ?? 'there';
+    final name = _firstName();
     final upcoming = tasks
-        .where((t) => t.startDateTime != null && t.startDateTime!.isAfter(now) && !_isSameDay(t.startDateTime!, now))
+        .where((t) =>
+            t.startDateTime != null &&
+            !t.startDateTime!.isBefore(shiftDay(_day, 1)))
         .toList()
       ..sort((a, b) => a.startDateTime!.compareTo(b.startDateTime!));
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
       children: [
-        Text(DateFormat('EEEE, MMMM d').format(now),
-            style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
+        Row(children: [
+          IconButton(
+            tooltip: 'Previous day',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => setState(() => _day = shiftDay(_day, -1)),
+          ),
+          Flexible(
+            child: InkWell(
+            onTap: _pickDay,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Text(DateFormat('EEEE, MMMM d').format(_day),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: context.palette.textSecondary)),
+            ),
+          ),
+          ),
+          IconButton(
+            tooltip: 'Next day',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => setState(() => _day = shiftDay(_day, 1)),
+          ),
+          if (!isToday)
+            TextButton(
+              onPressed: () => setState(() => _day = dateOnly(DateTime.now())),
+              child: const Text('Today'),
+            ),
+        ]),
         const SizedBox(height: 2),
         Text('${_greeting(now)}, $name',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 18),
-        _ProgressCard(done: done, goal: goal),
+        _ProgressCard(done: done, goal: goal, isToday: isToday),
         const SizedBox(height: 16),
         const WeekPreview(),
         const SizedBox(height: 22),
@@ -50,13 +101,16 @@ class TodayPage extends ConsumerWidget {
                 ],
               ),
             ),
-            Text(DateFormat('MMM d').format(now),
+            Text(DateFormat('MMM d').format(_day),
                 style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 12),
         if (today.isEmpty)
-          const _EmptyHint(text: 'Nothing scheduled today. Add a task to get started.')
+          _EmptyHint(
+              text: isToday
+                  ? 'Nothing scheduled today. Add a task to get started.'
+                  : 'Nothing scheduled on ${DateFormat('MMM d').format(_day)}.')
         else
           for (final task in today) _TimelineRow(task: task),
         const SizedBox(height: 24),
@@ -70,6 +124,16 @@ class TodayPage extends ConsumerWidget {
     );
   }
 
+  /// The signed-in user's first name. Falls back to a neutral word when there is
+  /// no user, or Firebase is not available (as in a widget test).
+  static String _firstName() {
+    try {
+      return FirebaseAuth.instance.currentUser?.displayName?.split(' ').first ?? 'there';
+    } catch (_) {
+      return 'there';
+    }
+  }
+
   static bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
@@ -81,10 +145,11 @@ class TodayPage extends ConsumerWidget {
 }
 
 class _ProgressCard extends StatelessWidget {
-  const _ProgressCard({required this.done, required this.goal});
+  const _ProgressCard({required this.done, required this.goal, required this.isToday});
 
   final int done;
   final int goal;
+  final bool isToday;
 
   @override
   Widget build(BuildContext context) {
@@ -130,11 +195,11 @@ class _ProgressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("TODAY'S PROGRESS",
+                Text(isToday ? "TODAY'S PROGRESS" : 'PROGRESS',
                     style: TextStyle(fontSize: 9.5, letterSpacing: 1.2, color: Colors.white70)),
                 const SizedBox(height: 4),
                 Text(
-                  remaining == 0 ? 'All done for today.' : "You're in a good flow.",
+                  remaining == 0 ? (isToday ? 'All done for today.' : 'All done.') : "You're in a good flow.",
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17),
                 ),
                 const SizedBox(height: 2),

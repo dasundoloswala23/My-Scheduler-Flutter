@@ -6,6 +6,8 @@ import 'package:myschedule/core/notifications/platform/notification_adapter.dart
 import 'package:myschedule/core/notifications/scheduling/reminder_calculator.dart';
 import 'package:myschedule/core/notifications/services/notification_service.dart';
 import 'package:myschedule/core/repository.dart';
+import 'package:myschedule/core/schedule_edit.dart';
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:myschedule/models/task.dart';
 
 /// These drive the real [Repo] against an in-memory Firestore and a fake
@@ -277,6 +279,66 @@ void main() {
 
       expect(h.adapter.scheduled, isEmpty);
       expect((await h.read(id)).completed, isTrue);
+    });
+  });
+  group('editing a task schedule from its detail sheet', () {
+    final day = DateTime(2026, 10, 5);
+
+    test('a new time and duration persist and the alert follows the time', () async {
+      final h = _Harness();
+      final id = await h.create(start: DateTime(2026, 10, 5, 18, 0));
+      final before = await h.read(id);
+
+      await h.repo.updateTask(
+        withSchedule(before,
+            date: day, time: const TimeOfDay(hour: 20, minute: 15), durationMinutes: 90),
+        previous: before,
+      );
+
+      final after = await h.read(id);
+      expect(after.startDateTime, DateTime(2026, 10, 5, 20, 15));
+      expect(after.endDateTime, DateTime(2026, 10, 5, 21, 45));
+      expect(after.isAllDay, isFalse);
+      expect(h.adapter.scheduled, hasLength(1), reason: 'the old alert is replaced, not kept');
+      expect(h.scheduledFor, DateTime(2026, 10, 5, 19, 45));
+    });
+
+    test('changing only the duration keeps the start and the alert', () async {
+      final h = _Harness();
+      final id = await h.create(start: DateTime(2026, 10, 5, 18, 0));
+      final before = await h.read(id);
+
+      await h.repo.updateTask(
+        withSchedule(before, date: before.startDateTime!, time: const TimeOfDay(hour: 18, minute: 0), durationMinutes: 45),
+        previous: before,
+      );
+
+      final after = await h.read(id);
+      expect(after.startDateTime, DateTime(2026, 10, 5, 18, 0));
+      expect(after.duration, const Duration(minutes: 45));
+      expect(h.scheduledFor, DateTime(2026, 10, 5, 17, 30));
+    });
+
+    test('removing the schedule takes the task off the calendar and cancels its alert',
+        () async {
+      final h = _Harness();
+      final id = await h.create(start: DateTime(2026, 10, 5, 18, 0));
+      final before = await h.read(id);
+
+      await h.repo.updateTask(withoutSchedule(before), previous: before);
+
+      final after = await h.read(id);
+      expect(after.hasSchedule, isFalse);
+      expect(after.endDateTime, isNull);
+      expect(h.adapter.scheduled, isEmpty);
+    });
+
+    test('a date with no time becomes an all-day task with no end', () {
+      final t = Task(id: 't', title: 'x', startDateTime: DateTime(2026, 10, 5, 9), endDateTime: DateTime(2026, 10, 5, 10));
+      final allDay = withSchedule(t, date: DateTime(2026, 10, 7), time: null, durationMinutes: 60);
+      expect(allDay.isAllDay, isTrue);
+      expect(allDay.startDateTime, DateTime(2026, 10, 7));
+      expect(allDay.endDateTime, isNull);
     });
   });
 }

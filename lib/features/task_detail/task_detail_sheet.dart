@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../app/theme.dart';
 import '../../core/position.dart';
 import '../../core/providers.dart';
+import '../../core/schedule_edit.dart';
 // `collections.dart` also declares a Reminder, for the standalone reminders
 // list. This screen means the task-attached kind, so the other is hidden.
 import '../../core/notifications/models/notification_preferences.dart';
@@ -106,12 +107,16 @@ class TaskDetailSheet extends ConsumerWidget {
                     Expanded(child: _InfoTile(label: 'PRIORITY', value: task.priority.label, icon: Icons.flag_outlined)),
                     const SizedBox(width: 12),
                     Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => showScheduleEditor(context, ref, task),
                       child: _InfoTile(
-                        label: 'DUE DATE',
+                        label: 'WHEN',
                         value: task.startDateTime == null
                             ? 'Not set'
                             : DateFormat('MMM d, h:mm a').format(task.startDateTime!),
                         icon: Icons.calendar_today_outlined,
+                      ),
                       ),
                     ),
                   ]),
@@ -176,7 +181,7 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
           ListTile(
             leading: const Icon(Icons.repeat),
             title: const Text('Repeat'),
-            subtitle: Text(task.recurrence.name),
+            subtitle: Text(task.recurrence.label),
             onTap: () async {
               final chosen = await showModalBottomSheet<Recurrence>(
                 context: sheetContext,
@@ -185,7 +190,7 @@ Future<void> showTaskDetailMore(BuildContext context, WidgetRef ref, Task task) 
                     shrinkWrap: true,
                     children: [
                       for (final r in Recurrence.values)
-                        ListTile(title: Text(r.name), onTap: () => Navigator.pop(c, r)),
+                        ListTile(title: Text(r.label), onTap: () => Navigator.pop(c, r)),
                     ],
                   ),
                 ),
@@ -664,4 +669,144 @@ class _SubtaskTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Edits when a task happens: its date, time and how long it lasts.
+///
+/// Every change goes through [Repo.updateTask] with the old task as `previous`,
+/// so the Calendar (which reads the same task) and the reminders both follow.
+Future<void> showScheduleEditor(BuildContext context, WidgetRef ref, Task task) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _ScheduleEditor(taskId: task.id),
+  );
+}
+
+class _ScheduleEditor extends ConsumerWidget {
+  const _ScheduleEditor({required this.taskId});
+  final String taskId;
+
+  Future<void> _apply(WidgetRef ref, Task before, Task after) =>
+      ref.read(repoProvider).updateTask(after, previous: before);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final task = (ref.watch(tasksProvider).value ?? const <Task>[])
+        .where((t) => t.id == taskId)
+        .firstOrNull;
+    if (task == null) return const SizedBox.shrink();
+
+    final start = task.startDateTime;
+    final timed = task.hasTimeSlot;
+    final minutes = durationMinutesOf(task);
+
+    Future<void> pickDate() async {
+      final now = DateTime.now();
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: start ?? now,
+        firstDate: DateTime(now.year - 5),
+        lastDate: DateTime(now.year + 10),
+      );
+      if (picked == null) return;
+      await _apply(
+        ref,
+        task,
+        withSchedule(
+          task,
+          date: picked,
+          time: timed ? TimeOfDay.fromDateTime(start!) : null,
+          durationMinutes: minutes,
+        ),
+      );
+    }
+
+    Future<void> pickTime() async {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: timed ? TimeOfDay.fromDateTime(start!) : const TimeOfDay(hour: 9, minute: 0),
+      );
+      if (picked == null) return;
+      await _apply(
+        ref,
+        task,
+        withSchedule(task, date: start ?? DateTime.now(), time: picked, durationMinutes: minutes),
+      );
+    }
+
+    Future<void> pickDuration() async {
+      final chosen = await showModalBottomSheet<int>(
+        context: context,
+        builder: (c) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              for (final m in const [15, 30, 45, 60, 90, 120, 180, 240])
+                ListTile(
+                  title: Text(_describe(m)),
+                  trailing: m == minutes ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.pop(c, m),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (chosen == null) return;
+      await _apply(
+        ref,
+        task,
+        withSchedule(task,
+            date: start!, time: TimeOfDay.fromDateTime(start), durationMinutes: chosen),
+      );
+    }
+
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.calendar_today_outlined),
+            title: const Text('Date'),
+            subtitle: Text(start == null ? 'Not set' : DateFormat('EEE, MMM d, y').format(start)),
+            onTap: pickDate,
+          ),
+          ListTile(
+            leading: const Icon(Icons.schedule),
+            title: const Text('Time'),
+            subtitle: Text(timed
+                ? DateFormat('h:mm a').format(start!)
+                : (start == null ? 'Not set' : 'All day')),
+            onTap: pickTime,
+          ),
+          if (timed) ...[
+            ListTile(
+              leading: const Icon(Icons.timelapse),
+              title: const Text('Duration'),
+              subtitle: Text(_describe(minutes)),
+              onTap: pickDuration,
+            ),
+            ListTile(
+              leading: const Icon(Icons.event_busy_outlined),
+              title: const Text('Ends'),
+              subtitle: Text(DateFormat('h:mm a').format(task.endDateTime ?? start!.add(task.duration))),
+            ),
+          ],
+          if (start != null)
+            ListTile(
+              leading: const Icon(Icons.close),
+              title: const Text('Remove from calendar'),
+              onTap: () async {
+                await _apply(ref, task, withoutSchedule(task));
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _describe(int m) => m < 60
+      ? '$m minutes'
+      : (m % 60 == 0 ? '${m ~/ 60} hour${m == 60 ? '' : 's'}' : '$m minutes');
 }

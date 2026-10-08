@@ -16,6 +16,18 @@ extension TaskPriorityX on TaskPriority {
 /// How often a task repeats. `none` means it does not.
 enum Recurrence { none, daily, weekdays, weekly, monthly, yearly }
 
+extension RecurrenceLabel on Recurrence {
+  /// Words for a chip, row or menu, never the enum's code name.
+  String get label => switch (this) {
+        Recurrence.none => 'Does not repeat',
+        Recurrence.daily => 'Daily',
+        Recurrence.weekdays => 'Weekdays',
+        Recurrence.weekly => 'Weekly',
+        Recurrence.monthly => 'Monthly',
+        Recurrence.yearly => 'Yearly',
+      };
+}
+
 class Subtask {
   const Subtask({
     required this.id,
