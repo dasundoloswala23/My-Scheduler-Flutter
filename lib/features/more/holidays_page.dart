@@ -88,19 +88,14 @@ class HolidaysPage extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                for (final category in HolidayCategory.values)
+                for (final group in HolidayGroup.values)
                   CheckboxListTile(
-                    value: selectedCategories.contains(category.id),
+                    value: group.isOn(selectedCategories),
                     controlAffinity: ListTileControlAffinity.leading,
-                    title: Text(category.pluralLabel,
+                    title: Text(group.label,
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     onChanged: (on) {
-                      final next = {...selectedCategories};
-                      if (on == true) {
-                        next.add(category.id);
-                      } else {
-                        next.remove(category.id);
-                      }
+                      final next = group.toggled(selectedCategories, on: on == true);
                       save(prefs.copyWith(holidayCategories: next.toList()));
                     },
                   ),

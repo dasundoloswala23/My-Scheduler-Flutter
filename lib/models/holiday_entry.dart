@@ -91,3 +91,45 @@ class HolidayCountry {
   /// Regional-indicator emoji, used as the marker on the calendar.
   final String flag;
 }
+
+/// The four kinds of holiday the settings screen offers.
+///
+/// Documents and preferences keep the finer [HolidayCategory] ids, so nothing
+/// already stored changes meaning. "Other" simply stands for the three that
+/// are not a public, bank or mercantile holiday.
+enum HolidayGroup { public, bank, mercantile, other }
+
+extension HolidayGroupX on HolidayGroup {
+  String get label => switch (this) {
+        HolidayGroup.public => 'Public holidays',
+        HolidayGroup.bank => 'Bank holidays',
+        HolidayGroup.mercantile => 'Mercantile holidays',
+        HolidayGroup.other => 'Other (national, religious, observances)',
+      };
+
+  /// The stored category ids this group switches on and off together.
+  List<String> get categoryIds => switch (this) {
+        HolidayGroup.public => [HolidayCategory.public.id],
+        HolidayGroup.bank => [HolidayCategory.bank.id],
+        HolidayGroup.mercantile => [HolidayCategory.mercantile.id],
+        HolidayGroup.other => [
+            HolidayCategory.national.id,
+            HolidayCategory.religious.id,
+            HolidayCategory.observance.id,
+          ],
+      };
+
+  /// True when any of the group's categories is selected.
+  bool isOn(Iterable<String> selected) => categoryIds.any(selected.contains);
+
+  /// [selected] with this group switched on or off.
+  Set<String> toggled(Iterable<String> selected, {required bool on}) {
+    final next = {...selected};
+    if (on) {
+      next.addAll(categoryIds);
+    } else {
+      next.removeAll(categoryIds);
+    }
+    return next;
+  }
+}

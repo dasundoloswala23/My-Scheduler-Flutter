@@ -150,4 +150,51 @@ void main() {
       expect(dates, sorted);
     });
   });
+  group('holiday groups: Public / Bank / Mercantile / Other', () {
+    test('Other stands for national, religious and observance together', () {
+      expect(HolidayGroup.other.categoryIds, ['national', 'religious', 'observance']);
+      expect(HolidayGroup.values.map((g) => g.label.split(' ').first),
+          ['Public', 'Bank', 'Mercantile', 'Other']);
+    });
+
+    test('switching a group on and off changes only its own categories', () {
+      final on = HolidayGroup.other.toggled(['public'], on: true);
+      expect(on, {'public', 'national', 'religious', 'observance'});
+      expect(HolidayGroup.other.toggled(on, on: false), {'public'});
+      expect(HolidayGroup.public.isOn({'bank'}), isFalse);
+      expect(HolidayGroup.other.isOn({'religious'}), isTrue);
+    });
+
+    test('Sri Lanka with Mercantile on and Public off shows only mercantile holidays', () {
+      var cats = <String>{'public', 'bank', 'mercantile'};
+      cats = HolidayGroup.public.toggled(cats, on: false);
+      cats = HolidayGroup.bank.toggled(cats, on: false);
+      final prefs = AppPreferences(holidayCountries: const ['LK'], holidayCategories: cats.toList());
+
+      // The choice survives a save and a reload.
+      final restored = AppPreferences.fromJson(prefs.toJson());
+      final entries = HolidayService(preferences: restored).entriesForYears([2026]);
+
+      expect(entries, isNotEmpty);
+      expect(entries.map((e) => e.category).toSet(), {HolidayCategory.mercantile});
+      expect(entries.map((e) => e.name), contains('May Day'));
+      expect(entries.map((e) => e.name), isNot(contains('Christmas Day')));
+    });
+
+    test('turning Other on brings back national, religious and observance holidays', () {
+      final cats = HolidayGroup.other.toggled({'mercantile'}, on: true);
+      final prefs = AppPreferences(holidayCountries: const ['LK'], holidayCategories: cats.toList());
+      final names = HolidayService(preferences: prefs).entriesForYears([2026]).map((e) => e.name);
+      expect(names, contains('Independence Day'));
+      expect(names, contains("World Teachers' Day"));
+    });
+
+    test('several countries each keep their own holidays under the same groups', () {
+      const prefs = AppPreferences(
+          holidayCountries: ['LK', 'US'], holidayCategories: ['public']);
+      final names = HolidayService(preferences: prefs).entriesForYears([2026]).map((e) => e.name);
+      expect(names, contains('Juneteenth'));
+      expect(names, contains('Christmas Day'));
+    });
+  });
 }
