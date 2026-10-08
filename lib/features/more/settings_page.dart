@@ -13,6 +13,7 @@ import '../../core/preferences/app_preferences.dart';
 import '../../core/providers.dart';
 import '../../models/collections.dart';
 import '../../models/task.dart';
+import '../legal/legal_pages.dart';
 import 'holidays_page.dart';
 import 'more_page.dart';
 import 'notification_settings_page.dart';
@@ -23,7 +24,7 @@ class SettingsPage extends ConsumerWidget {
 
   /// Asks for confirmation, re-authenticates, then deletes. Re-auth is required
   /// by Firebase for any deletion of a session that is not recent.
-  Future<void> _deleteAccount(BuildContext context) async {
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -44,7 +45,9 @@ class SettingsPage extends ConsumerWidget {
     );
     if (sure != true || !context.mounted) return;
 
-    final service = AccountService();
+    final service = AccountService(
+      cancelLocalReminders: () => ref.read(notificationAdapterProvider).cancelAll(),
+    );
     final user = FirebaseAuth.instance.currentUser;
     final providerIds = user?.providerData.map((p) => p.providerId).toSet() ?? {};
 
@@ -319,6 +322,31 @@ class SettingsPage extends ConsumerWidget {
               ],
             ),
           ),
+          const _SectionLabel('Legal'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: const Text('Privacy Policy',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text('Terms of Service',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TermsPage()),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 14),
           Card(
             child: ListTile(
@@ -327,7 +355,7 @@ class SettingsPage extends ConsumerWidget {
                   style: TextStyle(fontWeight: FontWeight.w600, color: palette.danger)),
               subtitle: Text('Permanently removes your tasks, files and sign-in',
                   style: TextStyle(fontSize: 12.5, color: palette.textSecondary)),
-              onTap: () => _deleteAccount(context),
+              onTap: () => _deleteAccount(context, ref),
             ),
           ),
           const SizedBox(height: 14),

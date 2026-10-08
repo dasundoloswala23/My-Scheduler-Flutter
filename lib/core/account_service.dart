@@ -20,12 +20,19 @@ import 'attachment_service.dart';
 ///  4. Delete the Auth account last, so a failure part-way can be retried
 ///     while the user can still sign in.
 class AccountService {
-  AccountService({FirebaseAuth? auth, FirebaseFirestore? db})
-      : _auth = auth ?? FirebaseAuth.instance,
+  AccountService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? db,
+    this.cancelLocalReminders,
+  })  : _auth = auth ?? FirebaseAuth.instance,
         _db = db ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
+
+  /// Clears every reminder and alarm scheduled on this device, so nothing
+  /// fires for an account that no longer exists.
+  final Future<void> Function()? cancelLocalReminders;
 
   /// Collections directly under users/{uid}. Tasks are handled separately so
   /// their attachments are removed first.
@@ -37,7 +44,12 @@ class AccountService {
     'reminders',
     'holidays',
     'focusSessions',
+    'flowLinks',
   ];
+
+  /// Project Flows own a `stages` subcollection that has to go with each one.
+  static const _flowCollection = 'projectFlows';
+  static const _flowStages = 'stages';
 
   Future<void> reauthenticateWithPassword(String password) async {
     final user = _auth.currentUser;
@@ -86,25 +98,48 @@ class AccountService {
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Not signed in.');
-    final uid = user.uid;
+
+    await deleteUserData(user.uid);
+
+    // The Auth account itself, last, so a failure above can be retried while
+    // the person can still sign in.
+    await user.delete();
+  }
+
+  /// Removes everything stored for [uid]: attachment files, tasks, flows and
+  /// every other collection, then the user document, then the local reminders.
+  ///
+  /// Safe to run again after a partial failure: each step only deletes what is
+  /// still there. Nothing outside `users/{uid}` is touched, so shared data such
+  /// as the built-in holiday tables is never affected.
+  Future<void> deleteUserData(String uid, {AttachmentService? attachments}) async {
     final userRef = _db.collection('users').doc(uid);
 
     // 1. Attachment files and their metadata.
-    final attachments = AttachmentService(db: _db, uid: uid);
+    final files = attachments ?? AttachmentService(db: _db, uid: uid);
     final tasks = await userRef.collection('tasks').get();
     for (final task in tasks.docs) {
-      await attachments.deleteAllFor(task.id);
+      await files.deleteAllFor(task.id);
     }
 
-    // 2. Tasks, then everything else under the user.
+    // 2. Tasks, flows (with their stages), then everything else under the user.
     await _deleteCollection(userRef.collection('tasks'));
+    final flows = await userRef.collection(_flowCollection).get();
+    for (final flow in flows.docs) {
+      await _deleteCollection(flow.reference.collection(_flowStages));
+    }
+    await _deleteCollection(userRef.collection(_flowCollection));
     for (final name in _collections) {
       await _deleteCollection(userRef.collection(name));
     }
     await userRef.delete();
 
-    // 3. The Auth account itself.
-    await user.delete();
+    // 3. Reminders already scheduled on this device.
+    try {
+      await cancelLocalReminders?.call();
+    } catch (_) {
+      // The data is gone either way; a stale local alert is not worth failing for.
+    }
   }
 
   /// Deletes every document in a collection in batches of 400, which stays

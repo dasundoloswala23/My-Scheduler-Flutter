@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
+import '../legal/legal_pages.dart';
 import 'auth_service.dart';
 
 class SignInPage extends StatefulWidget {
@@ -149,6 +150,7 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                   if (!_signUp)
                     TextButton(onPressed: _busy ? null : _resetPassword, child: const Text('Forgot password?')),
+                  const LegalLinks(),
                   const SizedBox(height: 20),
                   Row(children: [
                     const Expanded(child: Divider()),
