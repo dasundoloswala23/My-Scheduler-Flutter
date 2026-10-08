@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import '../models/collections.dart';
 import '../models/task.dart';
 import 'attachment_service.dart';
+import 'list_order.dart';
 import 'position.dart';
 import 'recurrence.dart';
 import 'notifications/models/notification_preferences.dart';
@@ -539,6 +540,46 @@ class Repo {
     }
 
     batch.delete(listRef);
+    await batch.commit();
+  }
+
+  /// Moves a list one place left (`delta` -1) or right (+1) on its board.
+  ///
+  /// This is the accessible way to reorder lists: a menu action rather than a
+  /// drag, so it works with a keyboard and a screen reader and cannot be
+  /// confused with dragging a card. It writes only the moved list's position,
+  /// unless its neighbours have become too close to split, in which case the
+  /// board's lists are renumbered.
+  Future<void> moveListBy(String listId, int delta) async {
+    final snap = await lists.doc(listId).get();
+    if (!snap.exists) return;
+    final list = TaskList.fromDoc(snap);
+
+    final siblings = (await lists.where('boardId', isEqualTo: list.boardId).get())
+        .docs
+        .map(TaskList.fromDoc)
+        .toList()
+      ..sort((a, b) => a.position.compareTo(b.position));
+
+    final plan = planListMove(siblings, listId, delta);
+    if (plan == null) return;
+
+    if (!plan.needsRebalance) {
+      await lists.doc(listId).update({
+        'position': plan.position,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    final batch = _db.batch();
+    final positions = Position.rebalanced(plan.reordered.length);
+    for (final (i, l) in plan.reordered.indexed) {
+      batch.update(lists.doc(l.id), {
+        'position': positions[i],
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
     await batch.commit();
   }
 

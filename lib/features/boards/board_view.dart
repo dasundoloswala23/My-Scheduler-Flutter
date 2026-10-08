@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,8 +28,12 @@ class _BoardViewState extends ConsumerState<BoardView> {
   late final _autoScroller = EdgeAutoScroller(_horizontal);
   String? _filterCategoryId;
 
+  /// True while any card is being dragged; the drop zones open up for it.
+  final _dragging = ValueNotifier<bool>(false);
+
   @override
   void dispose() {
+    _dragging.dispose();
     _autoScroller.dispose();
     _horizontal.dispose();
     super.dispose();
@@ -93,7 +98,9 @@ class _BoardViewState extends ConsumerState<BoardView> {
               for (final list in lists)
                 _ListColumn(
                   list: list,
+                  boardLists: lists,
                   tasks: tasksForList(tasks, list.id),
+                  dragging: _dragging,
                   onDragUpdate: _onDragUpdate,
                   onDragEnd: _autoScroller.stop,
                 ),
@@ -114,13 +121,19 @@ class _BoardViewState extends ConsumerState<BoardView> {
 class _ListColumn extends ConsumerStatefulWidget {
   const _ListColumn({
     required this.list,
+    required this.boardLists,
     required this.tasks,
+    required this.dragging,
     required this.onDragUpdate,
     required this.onDragEnd,
   });
 
   final TaskList list;
+
+  /// Every list on the board, in order, for the Move left / right menu.
+  final List<TaskList> boardLists;
   final List<Task> tasks;
+  final ValueNotifier<bool> dragging;
   final void Function(DragUpdateDetails) onDragUpdate;
   final VoidCallback onDragEnd;
 
@@ -233,16 +246,21 @@ class _ListColumnState extends ConsumerState<_ListColumn> {
                         style: TextStyle(fontSize: 11, color: palette.textSecondary)),
                   ),
                   const Spacer(),
-                  _ListMenu(list: widget.list),
+                  _ListMenu(list: widget.list, boardLists: widget.boardLists),
                 ],
               ),
             ),
             if (isEmpty)
               // An empty list still needs a comfortable drop target, just not
               // a viewport-tall one.
-              _TailDropZone(
+              _DropZone(
+                dragging: widget.dragging,
                 onAccept: (data) => _drop(data, 0),
-                isOnlyTarget: true,
+                label: 'No tasks yet',
+                sublabel: 'Drop a task here',
+                restingHeight: 92,
+                draggingHeight: 92,
+                alwaysShowLabel: true,
               )
             else
               Flexible(
@@ -252,21 +270,35 @@ class _ListColumnState extends ConsumerState<_ListColumn> {
                   padding: EdgeInsets.zero,
                   children: [
                     for (var i = 0; i < widget.tasks.length; i++) ...[
-                      DropGap(onAccept: (data) => _drop(data, i)),
+                      if (i == 0)
+                        _DropZone(
+                          dragging: widget.dragging,
+                          onAccept: (data) => _drop(data, 0),
+                          label: 'Drop task here',
+                        )
+                      else
+                        DropGap(onAccept: (data) => _drop(data, i)),
                       TaskDraggable(
                         data: TaskDragData(widget.tasks[i], fromListId: widget.list.id),
+                        onDragStarted: () => widget.dragging.value = true,
                         onDragUpdate: (d) {
                           widget.onDragUpdate(d);
                           _autoScroller.update(d.globalPosition, MediaQuery.sizeOf(context));
                         },
                         onDragEnd: () {
+                          widget.dragging.value = false;
                           widget.onDragEnd();
                           _autoScroller.stop();
                         },
                         child: TaskCard(task: widget.tasks[i]),
                       ),
                     ],
-                    _TailDropZone(onAccept: (data) => _drop(data, widget.tasks.length)),
+                    _DropZone(
+                      dragging: widget.dragging,
+                      onAccept: (data) => _drop(data, widget.tasks.length),
+                      label: 'Drop at the end',
+                      restingHeight: 24,
+                    ),
                   ],
                 ),
               ),
@@ -294,83 +326,119 @@ class _ListColumnState extends ConsumerState<_ListColumn> {
   }
 }
 
-/// The drop target under the last card, and the whole target of an empty
-/// list.
-class _TailDropZone extends StatefulWidget {
-  const _TailDropZone({required this.onAccept, this.isOnlyTarget = false});
+/// A labelled drop target that is only prominent while a card is being dragged.
+///
+/// While nothing is being dragged it collapses to a thin strip, so a list is not
+/// carrying permanent empty boxes. As soon as a drag starts it opens up and
+/// says what it is, and while a card hovers over it it grows further with a
+/// violet outline. The same widget serves as the top zone, the between-card
+/// gaps' bigger sibling at the end, and the whole target of an empty list.
+class _DropZone extends StatefulWidget {
+  const _DropZone({
+    required this.dragging,
+    required this.onAccept,
+    required this.label,
+    this.sublabel,
+    this.restingHeight = 8,
+    this.draggingHeight = 40,
+    this.alwaysShowLabel = false,
+  });
 
+  final ValueListenable<bool> dragging;
   final void Function(TaskDragData) onAccept;
+  final String label;
+  final String? sublabel;
 
-  /// True when the list has no cards. The zone is then a little taller and
-  /// says so, instead of being a bare dashed strip.
-  final bool isOnlyTarget;
+  /// Height when nothing is being dragged. Never zero: the zone must stay a
+  /// valid target the instant a drag begins.
+  final double restingHeight;
+  final double draggingHeight;
+
+  /// True for an empty list, whose zone is its only content.
+  final bool alwaysShowLabel;
 
   @override
-  State<_TailDropZone> createState() => _TailDropZoneState();
+  State<_DropZone> createState() => _DropZoneState();
 }
 
-class _TailDropZoneState extends State<_TailDropZone> {
+class _DropZoneState extends State<_DropZone> {
   bool _hovering = false;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final restingHeight = widget.isOnlyTarget ? 92.0 : 44.0;
 
-    return DragTarget<TaskDragData>(
-      onWillAcceptWithDetails: (_) {
-        setState(() => _hovering = true);
-        return true;
-      },
-      onLeave: (_) => setState(() => _hovering = false),
-      onAcceptWithDetails: (details) {
-        setState(() => _hovering = false);
-        widget.onAccept(details.data);
-      },
-      builder: (context, candidate, rejected) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: _hovering ? restingHeight + 16 : restingHeight,
-        margin: const EdgeInsets.only(top: 6, bottom: 4),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: _hovering ? palette.selected : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _hovering ? AppColors.primary : palette.border,
-            width: _hovering ? 2 : 1.4,
+    return ValueListenableBuilder<bool>(
+      valueListenable: widget.dragging,
+      builder: (context, isDragging, _) {
+        final open = isDragging || _hovering || widget.alwaysShowLabel;
+
+        return DragTarget<TaskDragData>(
+          onWillAcceptWithDetails: (_) {
+            setState(() => _hovering = true);
+            return true;
+          },
+          onLeave: (_) => setState(() => _hovering = false),
+          onAcceptWithDetails: (details) {
+            setState(() => _hovering = false);
+            widget.onAccept(details.data);
+          },
+          builder: (context, candidate, rejected) => AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            height: _hovering
+                ? widget.draggingHeight + 16
+                : (open ? widget.draggingHeight : widget.restingHeight),
+            margin: EdgeInsets.symmetric(vertical: open ? 4 : 2),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _hovering ? palette.selected : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: open
+                  ? Border.all(
+                      color: _hovering ? AppColors.primary : palette.border,
+                      width: _hovering ? 2 : 1.4,
+                    )
+                  : null,
+            ),
+            // Clipped, not laid out at its natural size: while the zone animates
+            // open its height is smaller than its text, which would overflow.
+            child: open
+                ? ClipRect(
+                    child: OverflowBox(
+                      maxHeight: double.infinity,
+                      child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _hovering ? 'Drop task here' : widget.label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: _hovering ? AppColors.primary : palette.textSecondary,
+                        ),
+                      ),
+                      if (widget.sublabel != null && !_hovering) ...[
+                        const SizedBox(height: 3),
+                        Text(widget.sublabel!,
+                            style: TextStyle(fontSize: 11.5, color: palette.textDisabled)),
+                      ],
+                    ],
+                    ),
+                  ),
+                  )
+                : null,
           ),
-        ),
-        child: widget.isOnlyTarget && !_hovering
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('No tasks yet',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textSecondary,
-                      )),
-                  const SizedBox(height: 3),
-                  Text('Drop a task here',
-                      style: TextStyle(fontSize: 11.5, color: palette.textDisabled)),
-                ],
-              )
-            : Text(
-                'Drop task here',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: _hovering ? AppColors.primary : palette.textSecondary,
-                ),
-              ),
-      ),
+        );
+      },
     );
   }
 }
 
 class _ListMenu extends ConsumerWidget {
-  const _ListMenu({required this.list});
+  const _ListMenu({required this.list, required this.boardLists});
   final TaskList list;
+  final List<TaskList> boardLists;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -383,12 +451,24 @@ class _ListMenu extends ConsumerWidget {
           if (name != null) await repo.saveList(list.copyWith(name: name));
         } else if (value == 'delete') {
           await repo.deleteList(list.id);
+        } else if (value == 'left') {
+          await repo.moveListBy(list.id, -1);
+        } else if (value == 'right') {
+          await repo.moveListBy(list.id, 1);
         }
       },
-      itemBuilder: (context) => [
+      itemBuilder: (context) {
+        final index = boardLists.indexWhere((l) => l.id == list.id);
+        return [
         const PopupMenuItem(value: 'rename', child: Text('Rename list')),
+        PopupMenuItem(value: 'left', enabled: index > 0, child: const Text('Move left')),
+        PopupMenuItem(
+            value: 'right',
+            enabled: index >= 0 && index < boardLists.length - 1,
+            child: const Text('Move right')),
         if (!list.isSystem) const PopupMenuItem(value: 'delete', child: Text('Delete list')),
-      ],
+        ];
+      },
     );
   }
 }

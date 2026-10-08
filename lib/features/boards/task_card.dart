@@ -547,6 +547,10 @@ class _MetaRow extends StatelessWidget {
       }
     }
 
+    if (task.recurrence != Recurrence.none) {
+      items.add(_Meta(icon: Icons.repeat, label: _recurrenceLabel(task.recurrence)));
+    }
+
     final reminders = task.effectiveReminders.where((r) => r.enabled).toList();
     if (reminders.isNotEmpty) {
       items.add(_Meta(
@@ -573,6 +577,15 @@ class _MetaRow extends StatelessWidget {
     return Wrap(spacing: 12, runSpacing: 5, children: items);
   }
 }
+
+String _recurrenceLabel(Recurrence r) => switch (r) {
+      Recurrence.none => '',
+      Recurrence.daily => 'Daily',
+      Recurrence.weekdays => 'Weekdays',
+      Recurrence.weekly => 'Weekly',
+      Recurrence.monthly => 'Monthly',
+      Recurrence.yearly => 'Yearly',
+    };
 
 class _Meta extends StatelessWidget {
   const _Meta({required this.icon, required this.label, this.color});
