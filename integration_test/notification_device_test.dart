@@ -6,6 +6,8 @@
 // by Android itself, so a pass here means the OS really holds the alarms.
 //
 //   flutter test integration_test/notification_device_test.dart -d ZL8325W28X
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -155,6 +157,52 @@ void main() {
     final pending = await plugin.pendingNotificationRequests();
     final entry = pending.firstWhere((p) => p.id == scheduledId);
     expect(entry.title, 'Device test — reschedule');
+  });
+
+  testWidgets('dragging a task to a new time moves the alarm the OS is holding', (tester) async {
+    // This goes through moveTask, which is what a calendar drag or a board move
+    // calls. The test above uses updateTask, which already rescheduled; moveTask
+    // did not, so the old alert kept firing at the old time.
+    final start = DateTime.now().add(const Duration(hours: 3));
+    final reminder = Reminder(id: const Uuid().v4(), taskId: 'pending', offsetMinutes: 30);
+
+    final id = await repo.createTask(
+      buildTask(title: 'Device test — drag reschedules', start: start, reminders: [reminder]),
+    );
+    createdTaskIds.add(id);
+    final scheduledId = ReminderCalculatorIds.forTask(id, reminder.id);
+
+    // The payload records when the alert was scheduled for, which lets the test
+    // read back the time Android is actually holding.
+    DateTime scheduledFor(List<PendingNotificationRequest> pending) {
+      final entry = pending.firstWhere((p) => p.id == scheduledId);
+      return DateTime.parse((jsonDecode(entry.payload!) as Map)['scheduledFor'] as String);
+    }
+
+    expect(scheduledFor(await plugin.pendingNotificationRequests()),
+        start.subtract(const Duration(minutes: 30)));
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(FirebaseAuth.instance.currentUser!.uid)
+        .collection('tasks')
+        .doc(id)
+        .get();
+    final saved = Task.fromDoc(snapshot);
+
+    final newStart = start.add(const Duration(hours: 2));
+    await repo.moveTask(
+      taskId: id,
+      expectedVersion: saved.version,
+      startDateTime: newStart,
+      endDateTime: newStart.add(const Duration(hours: 1)),
+    );
+
+    final after = await plugin.pendingNotificationRequests();
+    expect(after.where((p) => p.id == scheduledId), hasLength(1),
+        reason: 'one alarm, not the old one plus a new one');
+    expect(scheduledFor(after), newStart.subtract(const Duration(minutes: 30)),
+        reason: 'the alarm Android holds must now be for the new time');
   });
 
   testWidgets('deleting a task clears its alarms', (tester) async {

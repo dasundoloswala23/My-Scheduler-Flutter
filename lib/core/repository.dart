@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../models/collections.dart';
 import '../models/task.dart';
@@ -13,9 +14,14 @@ typedef Json = Map<String, dynamic>;
 /// All reads and writes for the signed-in user. Every document lives under
 /// `users/{uid}/…`, which is exactly what firestore.rules allows.
 class Repo {
-  Repo({FirebaseFirestore? db, String? uid})
+  Repo({FirebaseFirestore? db, String? uid, NotificationService? notifications})
       : _db = db ?? FirebaseFirestore.instance,
-        _uid = uid ?? FirebaseAuth.instance.currentUser?.uid ?? '_anon';
+        _uid = uid ?? FirebaseAuth.instance.currentUser?.uid ?? '_anon',
+        _injectedNotifications = notifications;
+
+  /// Supplied by tests, so the repository can be exercised without a platform
+  /// notification plugin. In the app it is null and a real one is used.
+  final NotificationService? _injectedNotifications;
 
   final FirebaseFirestore _db;
   final String _uid;
@@ -61,7 +67,7 @@ class Repo {
   /// Notification work goes through one service so scheduling rules live in a
   /// single, tested place rather than being scattered through the repository.
   NotificationService get _notifications =>
-      NotificationService(adapter: LocalNotificationAdapter());
+      _injectedNotifications ?? NotificationService(adapter: LocalNotificationAdapter());
 
   NotificationPreferences _preferences = const NotificationPreferences();
 
@@ -148,7 +154,7 @@ class Repo {
     TaskPriority? priority,
   }) async {
     final ref = tasks.doc(taskId);
-    return _db.runTransaction<MoveResult>((tx) async {
+    final result = await _db.runTransaction<MoveResult>((tx) async {
       final snap = await tx.get(ref);
       if (!snap.exists) throw const TaskGoneException();
 
@@ -175,6 +181,33 @@ class Repo {
       tx.update(ref, data);
       return MoveResult(hadConflict: current != expectedVersion, newVersion: current + 1);
     });
+
+    // A reminder is counted from the task's start, so moving the task has to
+    // move its alerts. Without this the old alert still fires at the old time
+    // and nothing fires at the new one. Only a change to the start (or to the
+    // category, which can be muted) affects scheduling; a plain reorder does not.
+    if (startDateTime != _unset || categoryId != _unset) {
+      await _resyncReminders(taskId);
+    }
+    return result;
+  }
+
+  /// Brings the platform's alerts in line with the task as it is now in
+  /// Firestore. A failure here must not undo a move that has already been saved,
+  /// so it is reported rather than thrown.
+  Future<void> _resyncReminders(String taskId) async {
+    try {
+      final snap = await tasks.doc(taskId).get();
+      if (!snap.exists) return;
+      final task = Task.fromDoc(snap);
+      await _notifications.sync(
+        task: task,
+        reminders: task.effectiveReminders,
+        preferences: _preferences,
+      );
+    } catch (e) {
+      debugPrint('Could not reschedule reminders for task $taskId: $e');
+    }
   }
 
   Future<void> setTaskCompleted(Task task, bool completed) async {
