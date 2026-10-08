@@ -13,6 +13,23 @@ enum ReminderType {
   recurring,
 }
 
+/// How a reminder gets the user's attention.
+///
+/// These are genuinely different behaviours, not a volume setting. A
+/// notification arrives once, like any other, and is easy to miss. An alarm is
+/// built to be hard to miss: it uses the alarm audio stream, repeats until it
+/// is dealt with, and asks the OS to show it over the lock screen. Where a
+/// platform does not allow that, the strongest permitted behaviour is used and
+/// the settings screen says so.
+enum AlertMode { notification, alarm }
+
+extension AlertModeX on AlertMode {
+  String get label => switch (this) {
+        AlertMode.notification => 'Notification',
+        AlertMode.alarm => 'Alarm',
+      };
+}
+
 /// The unit a custom offset was entered in, so the UI can show it back the way
 /// the user typed it rather than converting 2 days into 2880 minutes.
 enum ReminderUnit { minutes, hours, days }
@@ -44,6 +61,9 @@ class Reminder {
     this.offsetMinutes = 0,
     this.absoluteDateTime,
     this.enabled = true,
+    this.alertMode = AlertMode.notification,
+    this.soundId,
+    this.vibrate,
     this.notificationId,
     this.createdAt,
     this.updatedAt,
@@ -62,6 +82,18 @@ class Reminder {
   /// A disabled reminder is kept but never scheduled, so the user can switch
   /// one off without losing it.
   final bool enabled;
+
+  /// Notification or alarm. Per reminder, so one task can have a gentle early
+  /// nudge and a loud one at the start time.
+  final AlertMode alertMode;
+
+  /// Which sound to play, by id from the sound catalogue. Null means "use the
+  /// default for this mode", which is how a reminder follows the settings
+  /// screen until the user picks something specific for it.
+  final String? soundId;
+
+  /// Null follows the default for this mode.
+  final bool? vibrate;
 
   /// The id this reminder was last scheduled under on the platform.
   final int? notificationId;
@@ -93,11 +125,33 @@ class Reminder {
     return describeOffset(offsetMinutes);
   }
 
+  /// The same reminder attached to a different task.
+  ///
+  /// Used when a task is created together with its reminders: they are built
+  /// before the task has an id, so they are re-keyed once it does.
+  Reminder withTaskId(String newTaskId) => Reminder(
+        id: id,
+        taskId: newTaskId,
+        type: type,
+        offsetMinutes: offsetMinutes,
+        absoluteDateTime: absoluteDateTime,
+        enabled: enabled,
+        alertMode: alertMode,
+        soundId: soundId,
+        vibrate: vibrate,
+        notificationId: notificationId,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
   Reminder copyWith({
     ReminderType? type,
     int? offsetMinutes,
     Object? absoluteDateTime = _keep,
     bool? enabled,
+    AlertMode? alertMode,
+    Object? soundId = _keep,
+    Object? vibrate = _keep,
     Object? notificationId = _keep,
     DateTime? updatedAt,
   }) =>
@@ -109,6 +163,9 @@ class Reminder {
         absoluteDateTime:
             absoluteDateTime == _keep ? this.absoluteDateTime : absoluteDateTime as DateTime?,
         enabled: enabled ?? this.enabled,
+        alertMode: alertMode ?? this.alertMode,
+        soundId: soundId == _keep ? this.soundId : soundId as String?,
+        vibrate: vibrate == _keep ? this.vibrate : vibrate as bool?,
         notificationId: notificationId == _keep ? this.notificationId : notificationId as int?,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
@@ -121,6 +178,9 @@ class Reminder {
         'offsetMinutes': offsetMinutes,
         'absoluteDateTime': absoluteDateTime?.toIso8601String(),
         'enabled': enabled,
+        'alertMode': alertMode.name,
+        'soundId': soundId,
+        'vibrate': vibrate,
         'notificationId': notificationId,
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
@@ -138,6 +198,14 @@ class Reminder {
             ? null
             : DateTime.tryParse(json['absoluteDateTime'] as String),
         enabled: (json['enabled'] ?? true) as bool,
+        // A document written before alarms existed has no alertMode, so it
+        // stays the plain notification it always was.
+        alertMode: AlertMode.values.firstWhere(
+          (m) => m.name == json['alertMode'],
+          orElse: () => AlertMode.notification,
+        ),
+        soundId: json['soundId'] as String?,
+        vibrate: json['vibrate'] as bool?,
         notificationId: (json['notificationId'] as num?)?.toInt(),
         createdAt:
             json['createdAt'] == null ? null : DateTime.tryParse(json['createdAt'] as String),
@@ -152,10 +220,14 @@ class Reminder {
       other.type == type &&
       other.offsetMinutes == offsetMinutes &&
       other.absoluteDateTime == absoluteDateTime &&
-      other.enabled == enabled;
+      other.enabled == enabled &&
+      other.alertMode == alertMode &&
+      other.soundId == soundId &&
+      other.vibrate == vibrate;
 
   @override
-  int get hashCode => Object.hash(id, type, offsetMinutes, absoluteDateTime, enabled);
+  int get hashCode =>
+      Object.hash(id, type, offsetMinutes, absoluteDateTime, enabled, alertMode, soundId, vibrate);
 }
 
 const _keep = Object();

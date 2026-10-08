@@ -71,10 +71,15 @@ class Repo {
 
   Future<String> createTask(Task task) async {
     final doc = tasks.doc();
-    await doc.set({...task.toJson(), 'createdAt': FieldValue.serverTimestamp()});
 
-    // The new document has a real id now, so reminders can be keyed to it.
-    final saved = task.copyWithId(doc.id);
+    // The id is known before the write, so the reminders are stored against the
+    // real task rather than the placeholder they were built with.
+    final keyed = task.copyWith(
+      reminders: [for (final r in task.reminders) r.withTaskId(doc.id)],
+    );
+    await doc.set({...keyed.toJson(), 'createdAt': FieldValue.serverTimestamp()});
+
+    final saved = keyed.copyWithId(doc.id);
     await _notifications.sync(
       task: saved,
       reminders: saved.effectiveReminders,

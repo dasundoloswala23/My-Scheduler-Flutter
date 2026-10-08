@@ -8,7 +8,9 @@ import '../../core/position.dart';
 import '../../core/providers.dart';
 // `collections.dart` also declares a Reminder, for the standalone reminders
 // list. This screen means the task-attached kind, so the other is hidden.
+import '../../core/notifications/models/notification_preferences.dart';
 import '../../core/notifications/models/reminder.dart';
+import '../../core/notifications/models/reminder_sound.dart';
 import '../../models/collections.dart' hide Reminder;
 import '../../models/task.dart';
 import '../attachments/attachment_section.dart';
@@ -256,6 +258,9 @@ class _ReminderRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final reminders = task.effectiveReminders;
+    final notificationPrefs = ref.watch(notificationPreferencesProvider).value ??
+        const NotificationPreferences();
+    final defaultVibrate = notificationPrefs.vibration != VibrationPattern.none;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,19 +295,33 @@ class _ReminderRow extends ConsumerWidget {
               child: Row(
                 children: [
                   Icon(
-                    reminder.enabled ? Icons.notifications_active_outlined : Icons.notifications_off_outlined,
+                    !reminder.enabled
+                        ? Icons.notifications_off_outlined
+                        : reminder.alertMode == AlertMode.alarm
+                            ? Icons.alarm
+                            : Icons.notifications_active_outlined,
                     size: 18,
                     color: reminder.enabled ? AppColors.primary : context.palette.textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      reminder.label,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: reminder.enabled ? null : context.palette.textSecondary,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reminder.label,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: reminder.enabled ? null : context.palette.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${reminder.alertMode.label} · '
+                          '${ReminderSounds.labelFor(reminder.soundId ?? ReminderSounds.defaultFor(reminder.alertMode))}',
+                          style: TextStyle(fontSize: 11.5, color: context.palette.textSecondary),
+                        ),
+                      ],
                     ),
                   ),
                   Switch(
@@ -323,6 +342,8 @@ class _ReminderRow extends ConsumerWidget {
                         context,
                         taskId: task.id,
                         existing: reminder,
+                        defaultVibrate: defaultVibrate,
+                        defaultMode: notificationPrefs.defaultAlertMode,
                       );
                       if (edited == null) return;
                       await _save(ref, [
@@ -362,7 +383,12 @@ class _ReminderRow extends ConsumerWidget {
               }
             }
             if (!context.mounted) return;
-            final added = await showReminderEditor(context, taskId: task.id);
+            final added = await showReminderEditor(
+              context,
+              taskId: task.id,
+              defaultVibrate: defaultVibrate,
+              defaultMode: notificationPrefs.defaultAlertMode,
+            );
             if (added == null) return;
             await _save(ref, [...reminders, added]);
           },

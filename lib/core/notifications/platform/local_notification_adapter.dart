@@ -7,7 +7,9 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/notification_preferences.dart';
+import '../models/reminder_sound.dart';
 import '../scheduling/reminder_calculator.dart';
+import 'background_actions.dart';
 import 'notification_adapter.dart';
 
 /// The real adapter, backed by flutter_local_notifications.
@@ -59,7 +61,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
         categoryId,
         actions: [
           DarwinNotificationAction.plain('complete', 'Complete'),
-          DarwinNotificationAction.plain('snooze', 'Snooze 10 min'),
+          DarwinNotificationAction.plain('snooze', 'Snooze'),
           DarwinNotificationAction.plain('open', 'Open',
               options: {DarwinNotificationActionOption.foreground}),
         ],
@@ -99,7 +101,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp ?? false) {
       final response = launch!.notificationResponse;
-      if (response != null) launchEvent = _toEvent(response);
+      if (response != null) launchEvent = eventFromResponse(response);
     }
 
     _ready = true;
@@ -133,11 +135,13 @@ class LocalNotificationAdapter implements NotificationAdapter {
   }
 
   static void _onResponse(NotificationResponse response) {
-    final event = _toEvent(response);
+    final event = eventFromResponse(response);
     if (event != null) _events.add(event);
   }
 
-  static NotificationEvent? _toEvent(NotificationResponse response) {
+  /// Turns a raw platform response into an event, or null if it is not ours.
+  /// Public because the background isolate parses responses the same way.
+  static NotificationEvent? eventFromResponse(NotificationResponse response) {
     final raw = response.payload;
     if (raw == null || raw.isEmpty) return null;
 
@@ -160,6 +164,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
       taskId: taskId,
       reminderId: payload['reminderId'] as String?,
       snoozeMinutes: (payload['snoozeMinutes'] as num?)?.toInt(),
+      notificationId: response.id,
     );
   }
 
@@ -221,7 +226,7 @@ class LocalNotificationAdapter implements NotificationAdapter {
       title: n.title,
       body: n.body,
       scheduledDate: tz.TZDateTime.from(n.fireAt, tz.local),
-      notificationDetails: _details(prefs),
+      notificationDetails: await _detailsFor(n, prefs),
       // A reminder is only useful at the minute it was set for, so use an
       // exact alarm whenever the OS allows one. Inexact alarms are batched and
       // can arrive minutes late, which was observed on a real device. The app
@@ -251,52 +256,172 @@ class LocalNotificationAdapter implements NotificationAdapter {
         : AndroidScheduleMode.inexactAllowWhileIdle;
   }
 
-  NotificationDetails _details(NotificationPreferences prefs) {
+  /// Channel ids already created this run, so each is created once.
+  final Set<String> _channels = {};
+
+  /// The platform behaviour for one planned notification.
+  ///
+  /// Android fixes a channel's sound, vibration and importance when it is
+  /// created and ignores later changes, so each distinct combination gets its
+  /// own channel, created on first use. That is why a different sound on a
+  /// different reminder genuinely sounds different, instead of every reminder
+  /// sharing whichever channel happened to be created first.
+  Future<NotificationDetails> _detailsFor(
+    PlannedNotification n,
+    NotificationPreferences prefs,
+  ) async {
+    final alarm = n.isAlarm;
+
+    // The legacy global switches still apply on top: a user who chose Silent
+    // or Vibrate only in settings gets exactly that.
+    final globallyMuted = prefs.sound != NotificationSound.defaultSound;
+    final soundId = globallyMuted
+        ? kSilentSoundId
+        : ReminderSounds.resolve(n.soundId ?? ReminderSounds.defaultFor(n.alertMode));
+    final silent = soundId == kSilentSoundId;
+    final vibrate = (n.vibrate && prefs.vibration != VibrationPattern.none) ||
+        prefs.sound == NotificationSound.vibrateOnly;
+    final bundled = ReminderSounds.byId(soundId);
+
+    final pattern = alarm
+        ? Int64List.fromList(const [0, 800, 400, 800, 400, 800])
+        : (prefs.vibration.pattern == null
+            ? null
+            : Int64List.fromList(prefs.vibration.pattern!));
+
+    final importance = alarm
+        ? Importance.max
+        : switch (n.style) {
+            NotificationStyle.normal => Importance.defaultImportance,
+            NotificationStyle.important => Importance.high,
+            NotificationStyle.urgent => Importance.max,
+          };
+
+    final channelId =
+        'rem3_${alarm ? 'alarm' : n.style.name}_${silent ? 'silent' : soundId}_${vibrate ? 'v' : 'q'}';
+    final channelName = alarm ? 'Alarms' : n.style.channelName;
+    final sound =
+        bundled == null ? null : RawResourceAndroidNotificationSound(bundled.androidRawName);
+
+    await _ensureChannel(
+      AndroidNotificationChannel(
+        channelId,
+        '$channelName · ${ReminderSounds.labelFor(soundId)}${vibrate ? '' : ' · no vibration'}',
+        description: alarm
+            ? 'Reminders you set to alarm. They repeat until you deal with them.'
+            : 'Task reminders',
+        importance: importance,
+        playSound: !silent,
+        sound: sound,
+        enableVibration: vibrate,
+        vibrationPattern: vibrate ? pattern : null,
+        audioAttributesUsage:
+            alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+      ),
+    );
+
     final actions = supportsActions
-        ? const [
-            AndroidNotificationAction('complete', 'Complete', showsUserInterface: false),
-            AndroidNotificationAction('snooze', 'Snooze', showsUserInterface: false),
-            AndroidNotificationAction('open', 'Open', showsUserInterface: true),
+        ? [
+            const AndroidNotificationAction('complete', 'Complete', showsUserInterface: false),
+            AndroidNotificationAction('snooze', 'Snooze ${prefs.snoozeMinutes} min',
+                showsUserInterface: false),
+            const AndroidNotificationAction('open', 'Open', showsUserInterface: true),
           ]
         : const <AndroidNotificationAction>[];
 
-    final silent = prefs.sound != NotificationSound.defaultSound;
-    final vibrate = prefs.vibration != VibrationPattern.none &&
-        prefs.sound != NotificationSound.silent;
-    final pattern = prefs.vibration.pattern;
+    return NotificationDetails(
+      android: AndroidNotificationDetails(
+        channelId,
+        channelName,
+        channelDescription: 'Scheduled task and reminder alerts',
+        importance: importance,
+        priority: alarm || n.style == NotificationStyle.urgent
+            ? Priority.max
+            : n.style == NotificationStyle.important
+                ? Priority.high
+                : Priority.defaultPriority,
+        playSound: !silent,
+        sound: sound,
+        enableVibration: vibrate,
+        vibrationPattern: vibrate ? pattern : null,
+        audioAttributesUsage:
+            alarm ? AudioAttributesUsage.alarm : AudioAttributesUsage.notification,
+        actions: actions,
+        // The lock screen: public shows the task, private shows only that a
+        // notification exists. The user chooses in settings.
+        visibility: prefs.showContentOnLockScreen
+            ? NotificationVisibility.public
+            : NotificationVisibility.private,
+        // What makes an alarm an alarm rather than a louder notification: the
+        // alarm category, a full-screen intent (shown over the lock screen where
+        // Android allows it), a sound that repeats until handled (the insistent
+        // flag, value 4), and a notification that cannot be swiped away by
+        // accident.
+        category: alarm ? AndroidNotificationCategory.alarm : AndroidNotificationCategory.reminder,
+        fullScreenIntent: alarm,
+        ongoing: alarm,
+        autoCancel: !alarm,
+        additionalFlags: alarm ? Int32List.fromList(const [4]) : null,
+      ),
+      iOS: _darwin(n, silent, prefs),
+      macOS: DarwinNotificationDetails(
+        categoryIdentifier: categoryId,
+        presentSound: !silent,
+        presentBadge: prefs.badge,
+      ),
+    );
+  }
 
+  /// iOS cannot play a bundled custom sound here (see ReminderSounds), and has
+  /// no unrestricted alarm: the strongest it permits a local notification is a
+  /// time-sensitive one, which can break through Focus modes. That is what an
+  /// alarm maps to on iOS, and the settings screen says so.
+  DarwinNotificationDetails _darwin(
+    PlannedNotification n,
+    bool silent,
+    NotificationPreferences prefs,
+  ) =>
+      DarwinNotificationDetails(
+        categoryIdentifier: categoryId,
+        presentSound: !silent,
+        presentBadge: prefs.badge,
+        interruptionLevel: n.isAlarm || n.style == NotificationStyle.urgent
+            ? InterruptionLevel.timeSensitive
+            : InterruptionLevel.active,
+      );
+
+  Future<void> _ensureChannel(AndroidNotificationChannel channel) async {
+    if (defaultTargetPlatform != TargetPlatform.android || kIsWeb) return;
+    if (!_channels.add(channel.id)) return;
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+  }
+
+  /// Asks Android to let alarms take over the screen. Android 14 made this a
+  /// permission the user grants, and without it an alarm still sounds but shows
+  /// as an ordinary heads-up notification.
+  Future<bool> requestFullScreenIntentPermission() async {
+    if (defaultTargetPlatform != TargetPlatform.android || kIsWeb) return true;
+    await initialise();
+    return await _plugin
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestFullScreenIntentPermission() ??
+        false;
+  }
+
+  /// Used for immediate notifications such as the daily summary, which carry no
+  /// per-reminder settings.
+  NotificationDetails _details(NotificationPreferences prefs) {
+    final silent = prefs.sound != NotificationSound.defaultSound;
     return NotificationDetails(
       android: AndroidNotificationDetails(
         prefs.style.channelId,
         prefs.style.channelName,
         channelDescription: 'Scheduled task and reminder alerts',
-        importance: switch (prefs.style) {
-          NotificationStyle.normal => Importance.defaultImportance,
-          NotificationStyle.important => Importance.high,
-          NotificationStyle.urgent => Importance.max,
-        },
-        priority: switch (prefs.style) {
-          NotificationStyle.normal => Priority.defaultPriority,
-          NotificationStyle.important => Priority.high,
-          NotificationStyle.urgent => Priority.max,
-        },
-        playSound: prefs.sound == NotificationSound.defaultSound,
-        enableVibration: vibrate,
-        vibrationPattern: pattern == null ? null : Int64List.fromList(pattern),
-        actions: actions,
       ),
-      iOS: DarwinNotificationDetails(
-        categoryIdentifier: categoryId,
-        presentSound: !silent,
-        interruptionLevel: switch (prefs.style) {
-          NotificationStyle.urgent => InterruptionLevel.timeSensitive,
-          _ => InterruptionLevel.active,
-        },
-      ),
-      macOS: DarwinNotificationDetails(
-        categoryIdentifier: categoryId,
-        presentSound: !silent,
-      ),
+      iOS: DarwinNotificationDetails(categoryIdentifier: categoryId, presentSound: !silent),
+      macOS: DarwinNotificationDetails(categoryIdentifier: categoryId, presentSound: !silent),
     );
   }
 
@@ -344,8 +469,5 @@ class LocalNotificationAdapter implements NotificationAdapter {
 /// Runs when an action is tapped while the app is not in the foreground.
 /// Must be top-level and annotated or the OS cannot find it.
 @pragma('vm:entry-point')
-void notificationBackgroundHandler(NotificationResponse response) {
-  // No UI and no authenticated Firestore in this isolate. The action is
-  // replayed from getNotificationAppLaunchDetails on next launch, which keeps
-  // every write on the main isolate where auth already exists.
-}
+Future<void> notificationBackgroundHandler(NotificationResponse response) =>
+    BackgroundActions.handle(response);

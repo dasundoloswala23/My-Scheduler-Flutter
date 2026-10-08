@@ -102,6 +102,14 @@ class NotificationService {
         body: 'Snoozed reminder',
         fireAt: fireAt,
         style: preferences.style,
+        // A snoozed alarm must come back as an alarm, with the same sound; if
+        // it came back as a plain notification, snoozing would quietly
+        // downgrade the thing the user asked to be woken by.
+        alertMode: reminder.alertMode == AlertMode.alarm && preferences.alarmsEnabled
+            ? AlertMode.alarm
+            : AlertMode.notification,
+        soundId: reminder.soundId,
+        vibrate: reminder.vibrate ?? true,
       ),
       preferences,
     );

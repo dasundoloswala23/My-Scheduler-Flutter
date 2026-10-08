@@ -11,12 +11,17 @@ class NotificationEvent {
     required this.taskId,
     this.reminderId,
     this.snoozeMinutes,
+    this.notificationId,
   });
 
   final NotificationAction action;
   final String taskId;
   final String? reminderId;
   final int? snoozeMinutes;
+
+  /// The platform id of the notification that was tapped. An alarm stays on
+  /// screen until dismissed, so acting on it has to be able to clear it.
+  final int? notificationId;
 }
 
 /// The boundary between scheduling logic and the operating system.

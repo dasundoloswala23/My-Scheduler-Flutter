@@ -8,6 +8,14 @@
          revoke, which the app handles by degrading to inexact delivery. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <!-- Lets an alarm-style reminder wake the screen. Android 14 turned this
+         into a permission the user grants; without it an alarm still sounds and
+         repeats but appears as a heads-up notification. The main activity
+         deliberately does not set showWhenLocked: that would let a tap on the
+         lock screen show the whole app, and everyone's task list, without
+         unlocking. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
         android:label="My Scheduler App"

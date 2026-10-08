@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../../app/theme.dart';
 import '../../core/notifications/models/reminder.dart';
 import '../../core/notifications/platform/local_notification_adapter.dart';
+import 'reminder_alert_options.dart';
 
 /// Opens the editor for one reminder. Returns the edited reminder, or null if
 /// the user backed out.
@@ -12,11 +13,19 @@ Future<Reminder?> showReminderEditor(
   BuildContext context, {
   required String taskId,
   Reminder? existing,
+  bool defaultVibrate = true,
+  AlertMode defaultMode = AlertMode.notification,
 }) {
   return showModalBottomSheet<Reminder>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _ReminderEditor(taskId: taskId, existing: existing),
+    useSafeArea: true,
+    builder: (context) => _ReminderEditor(
+      taskId: taskId,
+      existing: existing,
+      defaultVibrate: defaultVibrate,
+      defaultMode: defaultMode,
+    ),
   );
 }
 
@@ -57,10 +66,19 @@ Future<bool> ensureNotificationPermission(BuildContext context) async {
 }
 
 class _ReminderEditor extends StatefulWidget {
-  const _ReminderEditor({required this.taskId, this.existing});
+  const _ReminderEditor({
+    required this.taskId,
+    this.existing,
+    this.defaultVibrate = true,
+    this.defaultMode = AlertMode.notification,
+  });
 
   final String taskId;
   final Reminder? existing;
+  final bool defaultVibrate;
+
+  /// What a brand new reminder starts as, from the user's settings.
+  final AlertMode defaultMode;
 
   @override
   State<_ReminderEditor> createState() => _ReminderEditorState();
@@ -73,6 +91,10 @@ class _ReminderEditorState extends State<_ReminderEditor> {
   late DateTime _absolute =
       widget.existing?.absoluteDateTime ?? DateTime.now().add(const Duration(hours: 1));
   final _valueController = TextEditingController();
+
+  late AlertMode _mode = widget.existing?.alertMode ?? widget.defaultMode;
+  late String? _soundId = widget.existing?.soundId;
+  late bool? _vibrate = widget.existing?.vibrate;
 
   @override
   void initState() {
@@ -100,6 +122,9 @@ class _ReminderEditorState extends State<_ReminderEditor> {
       offsetMinutes: _offsetMinutes,
       absoluteDateTime: _type == ReminderType.customTime ? _absolute : null,
       enabled: widget.existing?.enabled ?? true,
+      alertMode: _mode,
+      soundId: _soundId,
+      vibrate: _vibrate,
       createdAt: widget.existing?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -108,6 +133,12 @@ class _ReminderEditorState extends State<_ReminderEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final defaults = widget.defaultVibrate;
+
+    // Header and footer stay put; only the middle scrolls. That keeps Save
+    // reachable on a small screen and with the keyboard open, rather than
+    // letting a long form push it off the bottom.
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -123,114 +154,145 @@ class _ReminderEditorState extends State<_ReminderEditor> {
               ),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Text('Reminders fire before the task starts.',
-                  style: TextStyle(color: context.palette.textSecondary, fontSize: 12.5)),
+                  style: TextStyle(color: palette.textSecondary, fontSize: 12.5)),
             ),
-
-            // Quick presets.
-            SizedBox(
-              height: 44,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  for (final preset in kReminderPresets)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(describeOffset(preset)),
-                        selected: _type != ReminderType.customTime && _offsetMinutes == preset,
-                        onSelected: (_) {
-                          final (value, unit) = splitOffset(preset);
-                          setState(() {
-                            _type = preset == 0 ? ReminderType.atTime : ReminderType.beforeTask;
-                            _value = value;
-                            _unit = unit;
-                            _valueController.text = '$value';
-                          });
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 24),
-
-            // Custom value and unit: "[30] [Minutes] before".
-            if (_type != ReminderType.customTime && _type != ReminderType.atTime)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
+            Flexible(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Quick presets.
                     SizedBox(
-                      width: 80,
-                      child: TextField(
-                        controller: _valueController,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(isDense: true),
-                        onChanged: (v) => setState(() => _value = int.tryParse(v) ?? 0),
+                      height: 48,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          for (final preset in kReminderPresets)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(describeOffset(preset)),
+                                selected:
+                                    _type != ReminderType.customTime && _offsetMinutes == preset,
+                                onSelected: (_) {
+                                  final (value, unit) = splitOffset(preset);
+                                  setState(() {
+                                    _type = preset == 0
+                                        ? ReminderType.atTime
+                                        : ReminderType.beforeTask;
+                                    _value = value;
+                                    _unit = unit;
+                                    _valueController.text = '$value';
+                                  });
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    DropdownButton<ReminderUnit>(
-                      value: _unit,
-                      underline: const SizedBox.shrink(),
-                      items: [
-                        for (final unit in ReminderUnit.values)
-                          DropdownMenuItem(value: unit, child: Text(unit.label)),
-                      ],
-                      onChanged: (unit) => setState(() => _unit = unit ?? ReminderUnit.minutes),
+
+                    const Divider(height: 24),
+
+                    // Custom value and unit: "[30] [Minutes] before".
+                    if (_type != ReminderType.customTime && _type != ReminderType.atTime)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 80,
+                              child: TextField(
+                                controller: _valueController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(isDense: true),
+                                onChanged: (v) => setState(() => _value = int.tryParse(v) ?? 0),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            DropdownButton<ReminderUnit>(
+                              value: _unit,
+                              underline: const SizedBox.shrink(),
+                              items: [
+                                for (final unit in ReminderUnit.values)
+                                  DropdownMenuItem(value: unit, child: Text(unit.label)),
+                              ],
+                              onChanged: (unit) =>
+                                  setState(() => _unit = unit ?? ReminderUnit.minutes),
+                            ),
+                            const SizedBox(width: 12),
+                            Text('before', style: TextStyle(color: palette.textSecondary)),
+                          ],
+                        ),
+                      ),
+
+                    SwitchListTile(
+                      title: const Text('At a specific time instead'),
+                      subtitle: Text(
+                        _type == ReminderType.customTime
+                            ? '${_absolute.day}/${_absolute.month} at '
+                                '${TimeOfDay.fromDateTime(_absolute).format(context)}'
+                            : 'Independent of when the task starts',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      value: _type == ReminderType.customTime,
+                      onChanged: (on) => setState(
+                        () => _type = on ? ReminderType.customTime : ReminderType.beforeTask,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Text('before', style: TextStyle(color: context.palette.textSecondary)),
+
+                    if (_type == ReminderType.customTime)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _absolute,
+                              firstDate: DateTime.now().subtract(const Duration(days: 1)),
+                              lastDate: DateTime(2100),
+                            );
+                            if (date == null || !context.mounted) return;
+                            final time = await showTimePicker(
+                              context: context,
+                              initialTime: TimeOfDay.fromDateTime(_absolute),
+                            );
+                            if (time == null) return;
+                            setState(() => _absolute = DateTime(
+                                date.year, date.month, date.day, time.hour, time.minute));
+                          },
+                          icon: const Icon(Icons.schedule, size: 18),
+                          label: const Text('Choose date and time'),
+                        ),
+                      ),
+
+                    const Divider(height: 28),
+
+                    // Notification or alarm, the sound, and vibration.
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: ReminderAlertOptions(
+                        mode: _mode,
+                        soundId: _soundId,
+                        vibrate: _vibrate,
+                        defaultVibrate: defaults,
+                        onChanged: (mode, soundId, vibrate) => setState(() {
+                          _mode = mode;
+                          _soundId = soundId;
+                          _vibrate = vibrate;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
-
-            SwitchListTile(
-              title: const Text('At a specific time instead'),
-              subtitle: Text(
-                _type == ReminderType.customTime
-                    ? '${_absolute.day}/${_absolute.month} at '
-                        '${TimeOfDay.fromDateTime(_absolute).format(context)}'
-                    : 'Independent of when the task starts',
-                style: const TextStyle(fontSize: 12),
-              ),
-              value: _type == ReminderType.customTime,
-              onChanged: (on) => setState(
-                () => _type = on ? ReminderType.customTime : ReminderType.beforeTask,
-              ),
             ),
-
-            if (_type == ReminderType.customTime)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _absolute,
-                      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                      lastDate: DateTime(2100),
-                    );
-                    if (date == null || !context.mounted) return;
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(_absolute),
-                    );
-                    if (time == null) return;
-                    setState(() => _absolute =
-                        DateTime(date.year, date.month, date.day, time.hour, time.minute));
-                  },
-                  icon: const Icon(Icons.schedule, size: 18),
-                  label: const Text('Choose date and time'),
-                ),
-              ),
-
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Row(
                 children: [
                   Expanded(

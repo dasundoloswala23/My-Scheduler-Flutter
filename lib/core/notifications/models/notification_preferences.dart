@@ -1,3 +1,5 @@
+import 'reminder.dart';
+
 /// How loudly a reminder should arrive. Maps to an Android channel and an
 /// iOS/macOS interruption level.
 enum NotificationStyle { normal, important, urgent }
@@ -112,6 +114,14 @@ class NotificationPreferences {
     this.quietHoursEnd = const DayTime(7, 0),
     this.urgentIgnoresQuietHours = true,
     this.mutedCategoryIds = const {},
+    this.alarmsEnabled = true,
+    this.defaultAlertMode = AlertMode.notification,
+    this.notificationSoundId,
+    this.alarmSoundId,
+    this.snoozeMinutes = 10,
+    this.alarmsIgnoreQuietHours = false,
+    this.showContentOnLockScreen = true,
+    this.badge = true,
   });
 
   final bool masterEnabled;
@@ -144,6 +154,31 @@ class NotificationPreferences {
 
   /// Categories the user has muted; tasks in them schedule nothing.
   final Set<String> mutedCategoryIds;
+
+  /// When off, a reminder set to Alarm is delivered as a plain notification
+  /// instead. It is downgraded rather than dropped, so nothing is lost.
+  final bool alarmsEnabled;
+
+  /// What a new reminder starts as. A reminder can still override it.
+  final AlertMode defaultAlertMode;
+
+  /// Sound ids from the catalogue. Null means the default for that mode.
+  final String? notificationSoundId;
+  final String? alarmSoundId;
+
+  /// How long Snooze waits.
+  final int snoozeMinutes;
+
+  /// Whether an alarm may sound during quiet hours. Off by default: an alarm
+  /// only bypasses quiet hours if the user explicitly asks it to. This never
+  /// overrides the operating system's own Do Not Disturb.
+  final bool alarmsIgnoreQuietHours;
+
+  /// False hides the task title on the lock screen, for privacy.
+  final bool showContentOnLockScreen;
+
+  /// Whether the app icon badge is used (iOS and macOS).
+  final bool badge;
 
   /// True when [moment] falls inside the quiet window. Handles a window that
   /// wraps past midnight, which is the normal case (22:00 to 07:00).
@@ -180,6 +215,14 @@ class NotificationPreferences {
     DayTime? quietHoursEnd,
     bool? urgentIgnoresQuietHours,
     Set<String>? mutedCategoryIds,
+    bool? alarmsEnabled,
+    AlertMode? defaultAlertMode,
+    Object? notificationSoundId = _keep,
+    Object? alarmSoundId = _keep,
+    int? snoozeMinutes,
+    bool? alarmsIgnoreQuietHours,
+    bool? showContentOnLockScreen,
+    bool? badge,
   }) =>
       NotificationPreferences(
         masterEnabled: masterEnabled ?? this.masterEnabled,
@@ -205,6 +248,16 @@ class NotificationPreferences {
         quietHoursEnd: quietHoursEnd ?? this.quietHoursEnd,
         urgentIgnoresQuietHours: urgentIgnoresQuietHours ?? this.urgentIgnoresQuietHours,
         mutedCategoryIds: mutedCategoryIds ?? this.mutedCategoryIds,
+        alarmsEnabled: alarmsEnabled ?? this.alarmsEnabled,
+        defaultAlertMode: defaultAlertMode ?? this.defaultAlertMode,
+        notificationSoundId: notificationSoundId == _keep
+            ? this.notificationSoundId
+            : notificationSoundId as String?,
+        alarmSoundId: alarmSoundId == _keep ? this.alarmSoundId : alarmSoundId as String?,
+        snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
+        alarmsIgnoreQuietHours: alarmsIgnoreQuietHours ?? this.alarmsIgnoreQuietHours,
+        showContentOnLockScreen: showContentOnLockScreen ?? this.showContentOnLockScreen,
+        badge: badge ?? this.badge,
       );
 
   Map<String, dynamic> toJson() => {
@@ -229,6 +282,14 @@ class NotificationPreferences {
         'quietHoursEnd': quietHoursEnd.toJson(),
         'urgentIgnoresQuietHours': urgentIgnoresQuietHours,
         'mutedCategoryIds': mutedCategoryIds.toList(),
+        'alarmsEnabled': alarmsEnabled,
+        'defaultAlertMode': defaultAlertMode.name,
+        'notificationSoundId': notificationSoundId,
+        'alarmSoundId': alarmSoundId,
+        'snoozeMinutes': snoozeMinutes,
+        'alarmsIgnoreQuietHours': alarmsIgnoreQuietHours,
+        'showContentOnLockScreen': showContentOnLockScreen,
+        'badge': badge,
       };
 
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) =>
@@ -269,6 +330,17 @@ class NotificationPreferences {
             : DayTime.fromJson(Map<String, dynamic>.from(json['quietHoursEnd'] as Map)),
         urgentIgnoresQuietHours: (json['urgentIgnoresQuietHours'] ?? true) as bool,
         mutedCategoryIds: ((json['mutedCategoryIds'] ?? const []) as List).cast<String>().toSet(),
+        alarmsEnabled: (json['alarmsEnabled'] ?? true) as bool,
+        defaultAlertMode: AlertMode.values.firstWhere(
+          (m) => m.name == json['defaultAlertMode'],
+          orElse: () => AlertMode.notification,
+        ),
+        notificationSoundId: json['notificationSoundId'] as String?,
+        alarmSoundId: json['alarmSoundId'] as String?,
+        snoozeMinutes: ((json['snoozeMinutes'] as num?)?.toInt() ?? 10).clamp(1, 240),
+        alarmsIgnoreQuietHours: (json['alarmsIgnoreQuietHours'] ?? false) as bool,
+        showContentOnLockScreen: (json['showContentOnLockScreen'] ?? true) as bool,
+        badge: (json['badge'] ?? true) as bool,
       );
 }
 

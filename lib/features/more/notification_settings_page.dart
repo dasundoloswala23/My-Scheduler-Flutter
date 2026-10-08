@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../core/notifications/models/notification_preferences.dart';
 import '../../core/notifications/models/reminder.dart';
+import '../../core/notifications/models/reminder_sound.dart';
 import '../../core/notifications/platform/local_notification_adapter.dart';
+import '../task_detail/reminder_alert_options.dart';
 import '../task_detail/reminder_picker.dart';
 import '../../core/providers.dart';
 import 'more_page.dart';
@@ -182,7 +185,7 @@ class _Form extends ConsumerWidget {
                 onChanged: (v) => _save(ref, prefs.copyWith(style: v)),
               ),
               _Choice<NotificationSound>(
-                label: 'Sound',
+                label: 'Sound mode',
                 enabled: enabled,
                 value: prefs.sound,
                 options: NotificationSound.values,
@@ -197,6 +200,131 @@ class _Form extends ConsumerWidget {
                 labelFor: (v) => v.label,
                 onChanged: (v) => _save(ref, prefs.copyWith(vibration: v)),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _SectionLabel('Alarms and sounds'),
+        Card(
+          child: Column(
+            children: [
+              _Toggle(
+                label: 'Alarms',
+                subtitle: prefs.alarmsEnabled
+                    ? 'Reminders set to Alarm ring until you deal with them'
+                    : 'Off: Alarm reminders arrive as normal notifications',
+                value: prefs.alarmsEnabled,
+                enabled: enabled,
+                onChanged: (v) => _save(ref, prefs.copyWith(alarmsEnabled: v)),
+              ),
+              _Choice<AlertMode>(
+                label: 'New reminders are',
+                enabled: enabled,
+                value: prefs.defaultAlertMode,
+                options: AlertMode.values,
+                labelFor: (m) => m.label,
+                onChanged: (v) => _save(ref, prefs.copyWith(defaultAlertMode: v)),
+              ),
+              _Choice<String>(
+                label: 'Notification sound',
+                enabled: enabled,
+                value: ReminderSounds.resolve(
+                    prefs.notificationSoundId ?? ReminderSounds.defaultFor(AlertMode.notification)),
+                options: ReminderSounds.idsFor(),
+                labelFor: ReminderSounds.labelFor,
+                onChanged: (v) => _save(ref, prefs.copyWith(notificationSoundId: v)),
+              ),
+              _Choice<String>(
+                label: 'Alarm sound',
+                enabled: enabled && prefs.alarmsEnabled,
+                value: ReminderSounds.resolve(
+                    prefs.alarmSoundId ?? ReminderSounds.defaultFor(AlertMode.alarm)),
+                options: ReminderSounds.idsFor(),
+                labelFor: ReminderSounds.labelFor,
+                onChanged: (v) => _save(ref, prefs.copyWith(alarmSoundId: v)),
+              ),
+              _Choice<int>(
+                label: 'Snooze for',
+                enabled: enabled,
+                value: kSnoozeOptions.contains(prefs.snoozeMinutes)
+                    ? prefs.snoozeMinutes
+                    : kSnoozeOptions.first,
+                options: kSnoozeOptions,
+                labelFor: (m) => m < 60 ? '$m minutes' : '1 hour',
+                onChanged: (v) => _save(ref, prefs.copyWith(snoozeMinutes: v)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+                child: Text(
+                  describeAlertMode(AlertMode.alarm),
+                  style: TextStyle(
+                      fontSize: 11.5, height: 1.35, color: context.palette.textSecondary),
+                ),
+              ),
+              if (!ReminderSounds.supportsBundledSounds())
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                  child: Text(
+                    'Custom sounds are only available on Android for now, so the '
+                    'sound pickers here offer the system sound and silence.',
+                    style: TextStyle(
+                        fontSize: 11.5, height: 1.35, color: context.palette.textSecondary),
+                  ),
+                ),
+              if (defaultTargetPlatform == TargetPlatform.android)
+                ListTile(
+                  leading: const Icon(Icons.alarm_on_outlined),
+                  title: const Text('Alarm permissions',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Text(
+                    'Exact timing and showing over the lock screen',
+                    style: TextStyle(fontSize: 12.5, color: context.palette.textSecondary),
+                  ),
+                  onTap: () async {
+                    final adapter = LocalNotificationAdapter();
+                    final exact = await adapter.requestExactAlarmPermission();
+                    final fullScreen = await adapter.requestFullScreenIntentPermission();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          // Report what the system actually granted. Claiming
+                          // exact timing when Android withheld it would be the
+                          // very overpromise this screen is meant to avoid.
+                          '${exact ? 'Exact alarms allowed' : 'Exact alarms not allowed, so reminders may arrive a little late'}. '
+                          '${fullScreen ? 'Lock screen display allowed' : 'Lock screen display not allowed'}.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        _SectionLabel('Lock screen'),
+        Card(
+          child: Column(
+            children: [
+              _Toggle(
+                label: 'Show task details',
+                subtitle: prefs.showContentOnLockScreen
+                    ? 'The task name appears on the lock screen'
+                    : 'The lock screen shows only that a reminder arrived',
+                value: prefs.showContentOnLockScreen,
+                enabled: enabled,
+                onChanged: (v) => _save(ref, prefs.copyWith(showContentOnLockScreen: v)),
+              ),
+              if (defaultTargetPlatform == TargetPlatform.iOS ||
+                  defaultTargetPlatform == TargetPlatform.macOS)
+                _Toggle(
+                  label: 'App icon badge',
+                  value: prefs.badge,
+                  enabled: enabled,
+                  onChanged: (v) => _save(ref, prefs.copyWith(badge: v)),
+                ),
             ],
           ),
         ),
@@ -230,6 +358,13 @@ class _Form extends ConsumerWidget {
                 value: prefs.urgentIgnoresQuietHours,
                 enabled: enabled && prefs.quietHoursEnabled,
                 onChanged: (v) => _save(ref, prefs.copyWith(urgentIgnoresQuietHours: v)),
+              ),
+              _Toggle(
+                label: 'Let alarms sound during quiet hours',
+                subtitle: 'Off by default. This never overrides Do Not Disturb.',
+                value: prefs.alarmsIgnoreQuietHours,
+                enabled: enabled && prefs.quietHoursEnabled && prefs.alarmsEnabled,
+                onChanged: (v) => _save(ref, prefs.copyWith(alarmsIgnoreQuietHours: v)),
               ),
             ],
           ),

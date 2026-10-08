@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Stops the resource shrinker from deleting the reminder sounds in release builds.
+
+  A notification sound is looked up by name at runtime
+  (`RawResourceAndroidNotificationSound('chime')`), so nothing in the compiled code
+  references the files directly. The shrinker cannot see that, treats them as unused
+  and removes them. The result is a release build where every custom sound silently
+  falls back, while debug builds, which do not shrink, work perfectly.
+
+  This list must name every sound in `kBundledSounds`
+  (lib/core/notifications/models/reminder_sound.dart). A test checks that it does.
+
+  The file has its own name on purpose: a dependency already ships a
+  `res/raw/keep.xml`, and reusing that name here would replace it.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/soft_bell,@raw/classic_bell,@raw/alert,@raw/digital,@raw/chime,@raw/urgent" />

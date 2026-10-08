@@ -56,6 +56,16 @@ class _NotificationRouterState extends ConsumerState<NotificationRouter> {
     if (task == null || !mounted) return;
 
     final repo = ref.read(repoProvider);
+
+    // An alarm is an ongoing notification that keeps sounding until it is
+    // cleared, so acting on it, even just opening it, has to clear it. The
+    // Complete and Snooze buttons already cancel themselves; a tap on the body
+    // does not, which would leave the alarm ringing under the open app.
+    final id = event.notificationId;
+    if (id != null) {
+      await ref.read(notificationAdapterProvider).cancel(id);
+    }
+
     switch (event.action) {
       case NotificationAction.complete:
         await repo.setTaskCompleted(task, true);
@@ -65,7 +75,9 @@ class _NotificationRouterState extends ConsumerState<NotificationRouter> {
           );
         }
       case NotificationAction.snooze:
-        final minutes = event.snoozeMinutes ?? 10;
+        final minutes = event.snoozeMinutes ??
+            ref.read(notificationPreferencesProvider).value?.snoozeMinutes ??
+            10;
         await repo.snoozeTask(task, minutes: minutes, reminderId: event.reminderId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

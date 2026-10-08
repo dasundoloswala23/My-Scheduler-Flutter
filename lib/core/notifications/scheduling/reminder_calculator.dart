@@ -51,6 +51,9 @@ class PlannedNotification {
     required this.body,
     required this.fireAt,
     required this.style,
+    this.alertMode = AlertMode.notification,
+    this.soundId,
+    this.vibrate = true,
   });
 
   final int notificationId;
@@ -60,6 +63,17 @@ class PlannedNotification {
   final String body;
   final DateTime fireAt;
   final NotificationStyle style;
+
+  /// Already resolved against the user's settings: an alarm reminder is
+  /// [AlertMode.notification] here when alarms are switched off.
+  final AlertMode alertMode;
+
+  /// A catalogue id, or null for the default of this mode. The adapter turns
+  /// it into whatever the platform can actually play.
+  final String? soundId;
+  final bool vibrate;
+
+  bool get isAlarm => alertMode == AlertMode.alarm;
 
   @override
   String toString() => 'PlannedNotification($taskId/$reminderId at $fireAt)';
@@ -157,6 +171,13 @@ class ReminderCalculator {
         continue;
       }
 
+      // An alarm reminder is only an alarm while alarms are switched on.
+      // Otherwise it is downgraded to a notification, not dropped, so turning
+      // alarms off never silently loses a reminder.
+      final mode = reminder.alertMode == AlertMode.alarm && preferences.alarmsEnabled
+          ? AlertMode.alarm
+          : AlertMode.notification;
+
       var placedAny = false;
       var lastReason = SkipReason.noStartTime;
 
@@ -172,7 +193,7 @@ class ReminderCalculator {
           lastReason = SkipReason.inThePast;
           continue;
         }
-        if (_isSuppressedByQuietHours(fireAt, preferences)) {
+        if (_isSuppressedByQuietHours(fireAt, preferences, mode)) {
           lastReason = SkipReason.quietHours;
           continue;
         }
@@ -185,6 +206,12 @@ class ReminderCalculator {
           body: _bodyFor(reminder, start),
           fireAt: fireAt,
           style: preferences.style,
+          alertMode: mode,
+          soundId: reminder.soundId ??
+              (mode == AlertMode.alarm
+                  ? preferences.alarmSoundId
+                  : preferences.notificationSoundId),
+          vibrate: reminder.vibrate ?? preferences.vibration != VibrationPattern.none,
         ));
         placedAny = true;
       }
@@ -213,8 +240,16 @@ class ReminderCalculator {
     return out;
   }
 
-  bool _isSuppressedByQuietHours(DateTime fireAt, NotificationPreferences prefs) {
+  /// Quiet hours hold back notifications. An alarm gets through only when the
+  /// user has explicitly allowed that; the default is that it does not. This is
+  /// the app's own rule and never overrides the OS's Do Not Disturb.
+  bool _isSuppressedByQuietHours(
+    DateTime fireAt,
+    NotificationPreferences prefs,
+    AlertMode mode,
+  ) {
     if (!prefs.quietHoursEnabled) return false;
+    if (mode == AlertMode.alarm && prefs.alarmsIgnoreQuietHours) return false;
     if (prefs.style == NotificationStyle.urgent && prefs.urgentIgnoresQuietHours) return false;
     return prefs.isQuietAt(fireAt);
   }

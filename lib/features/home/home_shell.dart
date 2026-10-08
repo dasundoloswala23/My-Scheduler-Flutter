@@ -9,6 +9,7 @@ import '../../core/providers.dart';
 import '../boards/boards_page.dart';
 import '../calendar/calendar_page.dart';
 import '../inbox/inbox_page.dart';
+import 'lazy_indexed_stack.dart';
 import '../more/more_page.dart';
 import '../more/reminders_page.dart';
 import '../quick_add/quick_add_sheet.dart';
@@ -48,13 +49,22 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
   }
 
-  Widget get _page => switch (_index) {
+  Widget _pageFor(int i) => switch (i) {
         0 => const TodayPage(),
         1 => const BoardsPage(),
         2 => const CalendarPage(),
         3 => const InboxPage(),
         _ => const MorePage(),
       };
+
+  /// The five tabs, each built on first visit and then kept, so the Board's
+  /// scroll position and the Calendar's date and view survive a tab change. A
+  /// plain `switch` rebuilds the page from scratch every time.
+  Widget get _page => LazyIndexedStack(
+        index: _index,
+        itemCount: _destinations.length,
+        itemBuilder: (context, i) => _pageFor(i),
+      );
 
   void _openSearch() =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchPage()));
@@ -122,17 +132,142 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
       ),
       floatingActionButton: fab,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: ModernNavBar(
         selectedIndex: _index,
-        onDestinationSelected: _setIndex,
-        destinations: [
-          for (final d in _destinations)
-            NavigationDestination(
-              icon: Icon(d.icon),
-              selectedIcon: Icon(d.selected),
-              label: d.label,
+        onSelected: _setIndex,
+        destinations: _destinations,
+      ),
+    );
+  }
+}
+
+/// The bottom navigation on phones: a compact floating bar with a pill behind
+/// the selected tab.
+///
+/// It sits inside the scaffold's bottom bar slot, so the body and the floating
+/// action button are laid out above it and nothing is covered. The bottom
+/// padding comes from the device's own inset, which is the gesture bar on
+/// Android and the home indicator on iOS.
+class ModernNavBar extends StatelessWidget {
+  const ModernNavBar({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.destinations,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<({String label, IconData icon, IconData selected})> destinations;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+        child: Material(
+          color: palette.surface,
+          elevation: 0,
+          borderRadius: BorderRadius.circular(26),
+          clipBehavior: Clip.antiAlias,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: palette.border),
             ),
-        ],
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Row(
+                children: [
+                  for (final (i, d) in destinations.indexed)
+                    Expanded(
+                      child: _NavItem(
+                        label: d.label,
+                        icon: i == selectedIndex ? d.selected : d.icon,
+                        selected: i == selectedIndex,
+                        onTap: () => onSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final color = selected ? AppColors.primary : palette.textSecondary;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      // excludeSemantics replaces the InkWell's own semantics with this node, so
+      // the tap action has to be supplied here too. Without it a screen-reader
+      // user could hear the tab but not activate it.
+      onTap: onTap,
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          // 52 high: a comfortable touch target, not an oversized bar.
+          constraints: const BoxConstraints(minHeight: 52),
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? palette.tint(AppColors.primary) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            // Shrink-wrap. A Column defaults to filling its height, and inside
+            // the scaffold's bottom-bar slot that is the whole screen: the bar
+            // would cover everything.
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                scale: selected ? 1.1 : 1.0,
+                child: Icon(icon, size: 22, color: color),
+              ),
+              const SizedBox(height: 2),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: color,
+                ),
+                child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
