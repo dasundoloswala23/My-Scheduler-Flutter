@@ -74,9 +74,11 @@ are display concerns and never widen what a user can read.
 - **No App Check.** A stolen API key cannot read another user's data, but it
   can be used to create accounts. Enable App Check before a public launch.
 - **No rate limiting** on account creation beyond Firebase's own defaults.
-- **Test credentials are in the repository.** `tools/api-tests/lib.mjs` falls
-  back to a throwaway account (`dasuntest3@gmail.com` / `123456`). It owns only
-  seeded test data. Override with `MYS_TEST_EMAIL` and `MYS_TEST_PASSWORD`, and
-  do not reuse that password anywhere real.
+- **Test credentials were committed in earlier versions.** The live API tests and the
+  device tests now take them from the environment (`MYS_TEST_EMAIL`,
+  `MYS_TEST_PASSWORD`, or `--dart-define`) and nothing in the current tree holds
+  them, but they remain in git history. They belong to a throwaway account that
+  owns only seeded test data. Change that account's password, and do not reuse it
+  anywhere real.
 - The Firebase web API key is public by design. It identifies the project; it
   does not grant access. The rules are what protect the data.

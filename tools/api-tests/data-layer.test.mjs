@@ -8,8 +8,9 @@
  */
 const KEY = "AIzaSyAqNL0cPUS0hthRLh3OQvOIGueFDZOMLQ0";
 const PROJECT = "myscheduleplanner-e22f3";
-const EMAIL = "dasuntest3@gmail.com";
-const PASSWORD = "123456";
+const EMAIL = process.env.MYS_TEST_EMAIL;
+const PASSWORD = process.env.MYS_TEST_PASSWORD;
+if (!EMAIL || !PASSWORD) throw new Error("Set MYS_TEST_EMAIL and MYS_TEST_PASSWORD in the environment.");
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
 // This machine's connection drops requests now and then (ECONNRESET /

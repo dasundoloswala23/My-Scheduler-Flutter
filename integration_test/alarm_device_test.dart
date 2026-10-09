@@ -30,8 +30,10 @@ import 'package:myschedule/core/repository.dart';
 import 'package:myschedule/firebase_options.dart';
 import 'package:myschedule/models/task.dart';
 
-const email = 'dasuntest3@gmail.com';
-const password = '123456';
+// Credentials come from the command line, never from the repository:
+//   --dart-define=MYS_TEST_EMAIL=… --dart-define=MYS_TEST_PASSWORD=…
+const email = String.fromEnvironment('MYS_TEST_EMAIL');
+const password = String.fromEnvironment('MYS_TEST_PASSWORD');
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

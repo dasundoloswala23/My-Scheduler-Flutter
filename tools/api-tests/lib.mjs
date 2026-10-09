@@ -6,11 +6,18 @@
  * and Next.js clients take. That means they also verify the security rules,
  * not just the data shapes.
  */
+/** Test credentials are never kept in the repository; pass them in the environment. */
+function requireEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Set ${name} in the environment to run the live API tests.`);
+  return v;
+}
+
 export const KEY = process.env.MYS_API_KEY ?? "AIzaSyAqNL0cPUS0hthRLh3OQvOIGueFDZOMLQ0";
 export const PROJECT = process.env.MYS_PROJECT ?? "myscheduleplanner-e22f3";
 export const BUCKET = process.env.MYS_BUCKET ?? "myscheduleplanner-e22f3.firebasestorage.app";
-export const EMAIL = process.env.MYS_TEST_EMAIL ?? "dasuntest3@gmail.com";
-export const PASSWORD = process.env.MYS_TEST_PASSWORD ?? "123456";
+export const EMAIL = requireEnv("MYS_TEST_EMAIL");
+export const PASSWORD = requireEnv("MYS_TEST_PASSWORD");
 
 export const FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 export const STORAGE = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o`;
