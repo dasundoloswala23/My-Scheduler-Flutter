@@ -56,3 +56,6 @@ serviceAccountKey*.json
 
 # Node tooling
 tools/**/node_modules/
+
+# Local test credentials (never committed)
+.env.test.local
