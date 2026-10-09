@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -43,6 +45,8 @@ Future<int> _countFor(FakeFirebaseFirestore db, String uid) async {
 }
 
 void main() {
+  accountDeletionCoversTheRules();
+
   late FakeFirebaseFirestore db;
   late int cancelled;
   late AccountService service;
@@ -138,4 +142,20 @@ class _MetadataOnly extends Fake implements AttachmentService {
     }
     deleted.add(taskId);
   }
+}
+
+/// Deleting an account must reach every collection the rules let the app write,
+/// or a new collection would quietly outlive the account that owned it.
+void accountDeletionCoversTheRules() {
+  test('every collection in the rules is deleted with the account', () {
+    final rules = File('firestore.rules').readAsStringSync();
+    final inRules = RegExp(r'match /users/\{uid\}/([a-zA-Z]+)/\{id\}')
+        .allMatches(rules)
+        .map((m) => m.group(1)!)
+        .toSet();
+    final deleted = {'tasks', ..._collections};
+    expect(inRules, isNotEmpty);
+    expect(deleted.containsAll(inRules), isTrue,
+        reason: 'not deleted with the account: ${inRules.difference(deleted)}');
+  });
 }
