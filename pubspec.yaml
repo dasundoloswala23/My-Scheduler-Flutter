@@ -83,6 +83,7 @@ flutter:
   # android/app/src/main/res/raw, which is where Android reads notification
   # sounds from. Both are produced by tools/generate_sounds.dart.
   assets:
+    - assets/logo.png
     - assets/sounds/
 
   # To add assets to your application, add an assets section, like this:

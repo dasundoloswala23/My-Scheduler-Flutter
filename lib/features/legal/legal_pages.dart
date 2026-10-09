@@ -69,10 +69,14 @@ class LegalLinks extends StatelessWidget {
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        TextButton(onPressed: () => open(const TermsPage()), child: const Text('Terms')),
+        TextButton(
+            onPressed: () => open(const TermsPage()),
+            style: TextButton.styleFrom(foregroundColor: context.palette.accent),
+            child: const Text('Terms')),
         Text('·', style: TextStyle(color: context.palette.textSecondary)),
         TextButton(
             onPressed: () => open(const PrivacyPolicyPage()),
+            style: TextButton.styleFrom(foregroundColor: context.palette.accent),
             child: const Text('Privacy Policy')),
       ],
     );
