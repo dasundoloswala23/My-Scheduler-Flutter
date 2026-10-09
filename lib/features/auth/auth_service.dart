@@ -7,17 +7,31 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import 'desktop_google_auth.dart';
+
 /// Wraps every sign-in method so the UI only deals with [User] or an error.
 ///
 /// Google:
 ///  - Android / iOS: native google_sign_in, then a Firebase credential.
-///  - Windows / macOS / Web: Firebase's own OAuth popup or redirect flow.
+///  - Windows: system browser with a loopback redirect (see [DesktopGoogleAuth]),
+///    because Firebase's `signInWithProvider` is not supported on Windows.
+///  - Web: Firebase's own popup.
 /// Apple: native Sign in with Apple, iOS and macOS.
 /// Email/password: works on every platform.
 class AuthService {
-  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth, DesktopGoogleAuth? desktopGoogle})
+      : _auth = auth ?? FirebaseAuth.instance,
+        _desktopGoogle = desktopGoogle ?? DesktopGoogleAuth(clientId: _desktopClientId, clientSecret: _desktopClientSecret);
 
   final FirebaseAuth _auth;
+  final DesktopGoogleAuth _desktopGoogle;
+
+  /// The Google OAuth client of type "Desktop app", supplied at build time:
+  /// `--dart-define=GOOGLE_DESKTOP_CLIENT_ID=... --dart-define=GOOGLE_DESKTOP_CLIENT_SECRET=...`
+  static const _desktopClientId = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_ID');
+  static const _desktopClientSecret = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_SECRET');
+
+  bool get _usesDesktopGoogle => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
   Stream<User?> get authChanges => _auth.authStateChanges();
 
@@ -44,11 +58,16 @@ class AuthService {
       return;
     }
 
+    if (_usesDesktopGoogle) {
+      final idToken = await _desktopGoogle.signIn();
+      await _auth.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
+      return;
+    }
+
     final provider = GoogleAuthProvider()..addScope('email');
     if (kIsWeb) {
       await _auth.signInWithPopup(provider);
     } else {
-      // Desktop has no native Google SDK, so Firebase opens the browser.
       await _auth.signInWithProvider(provider);
     }
   }
@@ -109,6 +128,7 @@ class AuthService {
 
 /// Used by the UI to show a friendly message for [FirebaseAuthException].
 String authErrorMessage(Object error) {
+  if (error is DesktopGoogleAuthException) return error.message;
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-email':
