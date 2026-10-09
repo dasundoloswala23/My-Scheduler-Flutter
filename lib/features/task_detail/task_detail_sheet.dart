@@ -84,7 +84,7 @@ class TaskDetailSheet extends ConsumerWidget {
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(category.colorValue))),
+                                  color: context.palette.onTint(Color(category.colorValue)))),
                         ),
                       const Spacer(),
                       IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),

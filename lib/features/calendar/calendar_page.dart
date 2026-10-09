@@ -221,7 +221,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           ),
         ),
         if (!isWide && view.isTimeGrid && unscheduled.isNotEmpty)
-          SizedBox(height: 132, child: _UnscheduledPanel(tasks: unscheduled, horizontal: true)),
+          SizedBox(height: 152, child: _UnscheduledPanel(tasks: unscheduled, horizontal: true)),
       ],
     );
   }
@@ -1176,7 +1176,7 @@ class _UnscheduledCard extends ConsumerWidget {
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 if (category != null)
                   Text(category.name,
-                      style: TextStyle(fontSize: 11, color: Color(category.colorValue))),
+                      style: TextStyle(fontSize: 11, color: context.palette.onTint(Color(category.colorValue)))),
               ],
             ),
           ),

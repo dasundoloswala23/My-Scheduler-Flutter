@@ -136,7 +136,7 @@ class _BoardTile extends StatelessWidget {
             color: Color(board.colorValue).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(Icons.view_week, color: Color(board.colorValue)),
+          child: Icon(Icons.view_week, color: context.palette.onTint(Color(board.colorValue))),
         ),
         title: Text(board.name, style: const TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text('$taskCount tasks · $listCount lists',

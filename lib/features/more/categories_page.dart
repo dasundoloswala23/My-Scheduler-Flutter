@@ -53,10 +53,10 @@ class CategoriesPage extends ConsumerWidget {
                           color: Color(c.colorValue).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: Icon(Icons.label, size: 18, color: Color(c.colorValue)),
+                        child: Icon(Icons.label, size: 18, color: context.palette.onTint(Color(c.colorValue))),
                       ),
                       title: Text(c.name,
-                          style: TextStyle(fontWeight: FontWeight.w700, color: Color(c.colorValue))),
+                          style: TextStyle(fontWeight: FontWeight.w700, color: context.palette.onTint(Color(c.colorValue)))),
                       subtitle: Text('${counts[c.id] ?? 0} active tasks',
                           style: TextStyle(fontSize: 12, color: context.palette.textSecondary)),
                       trailing: PopupMenuButton<String>(
