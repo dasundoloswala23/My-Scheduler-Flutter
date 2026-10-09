@@ -72,9 +72,17 @@ final _serverTasksProvider = StreamProvider<List<Task>>((ref) => ref.watch(repoP
 
 /// True while Firestore is serving from its local cache, which is how the app
 /// knows it is offline. Edits still work; they queue and replay on reconnect.
+///
+/// `includeMetadataChanges` matters: the first snapshot usually comes from the
+/// cache, and when the server then confirms the same data nothing in the data
+/// changed, so without it no second event arrives and "Offline" stays on screen
+/// for as long as the app is open.
 final isOfflineProvider = StreamProvider<bool>((ref) {
   final repo = ref.watch(repoProvider);
-  return repo.tasks.snapshots().map((s) => s.metadata.isFromCache);
+  return repo.tasks
+      .snapshots(includeMetadataChanges: true)
+      .map((s) => s.metadata.isFromCache)
+      .distinct();
 });
 
 final tasksProvider = Provider<AsyncValue<List<Task>>>((ref) {
