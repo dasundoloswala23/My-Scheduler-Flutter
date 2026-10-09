@@ -437,7 +437,7 @@ class _ChoiceTile<T> extends StatelessWidget {
               children: [
                 Expanded(child: Text(entry.value)),
                 if (entry.key == value)
-                  const Icon(Icons.check, size: 17, color: AppColors.primary),
+                  Icon(Icons.check, size: 17, color: context.palette.accent),
               ],
             ),
           ),

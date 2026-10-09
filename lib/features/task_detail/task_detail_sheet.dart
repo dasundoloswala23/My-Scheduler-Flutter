@@ -306,7 +306,7 @@ class _ReminderRow extends ConsumerWidget {
                             ? Icons.alarm
                             : Icons.notifications_active_outlined,
                     size: 18,
-                    color: reminder.enabled ? AppColors.primary : context.palette.textSecondary,
+                    color: reminder.enabled ? context.palette.accent : context.palette.textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(

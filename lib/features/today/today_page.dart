@@ -102,7 +102,7 @@ class _TodayPageState extends ConsumerState<TodayPage> {
               ),
             ),
             Text(DateFormat('MMM d').format(_day),
-                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                style: TextStyle(color: context.palette.accent, fontWeight: FontWeight.w600, fontSize: 13)),
           ],
         ),
         const SizedBox(height: 12),

@@ -319,7 +319,7 @@ class _Header extends StatelessWidget {
                         children: [
                           Expanded(child: Text(option.label)),
                           if (option == density)
-                            const Icon(Icons.check, size: 16, color: AppColors.primary),
+                            Icon(Icons.check, size: 16, color: context.palette.accent),
                         ],
                       ),
                     ),

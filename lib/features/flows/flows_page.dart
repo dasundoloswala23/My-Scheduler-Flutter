@@ -209,7 +209,7 @@ class _FlowCard extends StatelessWidget {
                         ? palette.danger
                         : switch (status) {
                             FlowStatus.completed => palette.success,
-                            FlowStatus.active => AppColors.primary,
+                            FlowStatus.active => context.palette.accent,
                             _ => palette.textSecondary,
                           },
                   ),

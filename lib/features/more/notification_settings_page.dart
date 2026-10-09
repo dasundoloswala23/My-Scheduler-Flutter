@@ -517,7 +517,7 @@ class _TimeRow extends StatelessWidget {
       trailing: Text(time.format(),
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: enabled ? AppColors.primary : context.palette.textSecondary,
+            color: enabled ? context.palette.accent : context.palette.textSecondary,
           )),
       onTap: enabled
           ? () async {

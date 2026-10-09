@@ -173,8 +173,8 @@ class _StageTile extends ConsumerWidget {
 
     final (IconData icon, Color color) = switch (state) {
       StageState.completed => (Icons.check_circle, palette.success),
-      StageState.active => (Icons.radio_button_checked, AppColors.primary),
-      StageState.upcoming => (Icons.radio_button_unchecked, AppColors.primary),
+      StageState.active => (Icons.radio_button_checked, context.palette.accent),
+      StageState.upcoming => (Icons.radio_button_unchecked, context.palette.accent),
       StageState.blocked => (Icons.block, palette.danger),
       StageState.locked => (Icons.lock_outline, palette.textDisabled),
     };
@@ -207,7 +207,7 @@ class _StageTile extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: highlighted
-                          ? AppColors.primary
+                          ? context.palette.accent
                           : (state == StageState.blocked ? palette.danger : Colors.transparent),
                       width: highlighted || state == StageState.blocked ? 1.5 : 0,
                     ),

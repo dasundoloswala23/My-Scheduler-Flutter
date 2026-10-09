@@ -56,15 +56,15 @@ class WeekPreview extends ConsumerWidget {
                 InkWell(
                   onTap: () => openCalendar(now),
                   borderRadius: BorderRadius.circular(8),
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     child: Row(children: [
                       Text('Open calendar',
                           style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.primary)),
-                      Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                              color: context.palette.accent)),
+                      Icon(Icons.chevron_right, size: 16, color: context.palette.accent),
                     ]),
                   ),
                 ),

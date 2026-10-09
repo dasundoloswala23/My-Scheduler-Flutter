@@ -235,7 +235,7 @@ class _SoundRow extends StatelessWidget {
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
               size: 20,
-              color: selected ? AppColors.primary : palette.textSecondary,
+              color: selected ? context.palette.accent : palette.textSecondary,
             ),
             const SizedBox(width: 12),
             Expanded(

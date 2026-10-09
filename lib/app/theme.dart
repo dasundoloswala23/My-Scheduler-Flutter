@@ -50,6 +50,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.success,
     required this.warning,
     required this.info,
+    required this.accent,
   });
 
   final Brightness brightness;
@@ -90,6 +91,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color warning;
   final Color info;
 
+  /// The brand violet as TEXT or a small icon. The brand colour itself (a button
+  /// fill) is [AppColors.primary]; as text it is 4.4:1 on the light page and only
+  /// 3.9:1 on the dark one, so text and icons use this instead, which clears 4.5:1
+  /// on the page, a card and a selected row in both themes.
+  final Color accent;
+
   bool get isDark => brightness == Brightness.dark;
 
   /// A tint of [color] to sit behind text of that same colour — the category
@@ -99,13 +106,29 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// which is the single most common dark-mode bug in this kind of UI.
   Color tint(Color color) => color.withValues(alpha: isDark ? 0.22 : 0.12);
 
-  /// A readable version of a user-chosen category colour on this theme's
-  /// surfaces. Saturated colours picked in light mode go muddy on dark, so
-  /// they are lifted toward white instead of used raw.
+  /// A readable version of a user-chosen category colour, for text and icons drawn
+  /// on a [tint] of that same colour over [surface].
+  ///
+  /// The colour is moved along its lightness (darker in light mode, lighter in
+  /// dark mode) until it reaches 4.5:1 against that tinted background, so a pale
+  /// green or amber category stays legible instead of being used raw.
   Color onTint(Color color) {
-    if (!isDark) return color;
+    final background = Color.alphaBlend(tint(color), surface);
     final hsl = HSLColor.fromColor(color);
-    return hsl.withLightness(hsl.lightness.clamp(0.0, 1.0) < 0.62 ? 0.72 : hsl.lightness).toColor();
+    var lightness = isDark ? (hsl.lightness < 0.62 ? 0.72 : hsl.lightness) : hsl.lightness;
+    final step = isDark ? 0.02 : -0.02;
+    var candidate = hsl.withLightness(lightness).toColor();
+    for (var i = 0; i < 50 && _ratio(candidate, background) < 4.5; i++) {
+      lightness = (lightness + step).clamp(0.0, 1.0);
+      candidate = hsl.withLightness(lightness).toColor();
+    }
+    return candidate;
+  }
+
+  static double _ratio(Color a, Color b) {
+    final la = a.computeLuminance();
+    final lb = b.computeLuminance();
+    return (la > lb ? la + 0.05 : lb + 0.05) / (la > lb ? lb + 0.05 : la + 0.05);
   }
 
   static const light = AppPalette(
@@ -122,10 +145,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
     hover: Color(0x0D000000),
     selected: Color(0x146C5CE7),
     gridLine: Color(0xFFE8EAEE),
-    danger: Color(0xFFD7373C),
-    success: Color(0xFF1F8A57),
-    warning: Color(0xFFB4741D),
+    // Darkened from the first values (4.3 / 4.0 / 3.5:1) so status text clears 4.5:1.
+    danger: Color(0xFFC22B30),
+    success: Color(0xFF17743F),
+    warning: Color(0xFF8F5A0E),
     info: Color(0xFF2563EB),
+    accent: Color(0xFF5A49D8),
   );
 
   static const dark = AppPalette(
@@ -147,6 +172,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     success: Color(0xFF3DD68C),
     warning: Color(0xFFF5B952),
     info: Color(0xFF6AA5FF),
+    accent: Color(0xFFA399FF),
   );
 
   @override
@@ -168,6 +194,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? success,
     Color? warning,
     Color? info,
+    Color? accent,
   }) {
     return AppPalette(
       brightness: brightness ?? this.brightness,
@@ -187,6 +214,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       success: success ?? this.success,
       warning: warning ?? this.warning,
       info: info ?? this.info,
+      accent: accent ?? this.accent,
     );
   }
 
@@ -212,6 +240,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       success: c(success, other.success),
       warning: c(warning, other.warning),
       info: c(info, other.info),
+      accent: c(accent, other.accent),
     );
   }
 }

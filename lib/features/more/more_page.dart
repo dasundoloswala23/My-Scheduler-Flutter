@@ -326,7 +326,7 @@ class EmptyState extends StatelessWidget {
               label: Text(actionLabel),
               style: FilledButton.styleFrom(
                 backgroundColor: context.palette.selected,
-                foregroundColor: AppColors.primary,
+                foregroundColor: context.palette.accent,
                 minimumSize: const Size(0, 46),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),

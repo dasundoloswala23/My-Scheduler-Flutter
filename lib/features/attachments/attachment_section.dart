@@ -253,10 +253,10 @@ class _AddMenu extends StatelessWidget {
           color: context.palette.selected,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: const Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.add, size: 16, color: AppColors.primary),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.add, size: 16, color: context.palette.accent),
           SizedBox(width: 5),
-          Text('Add', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: AppColors.primary)),
+          Text('Add', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: context.palette.accent)),
         ]),
       ),
     );

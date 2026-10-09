@@ -103,8 +103,8 @@ class _FocusPageState extends ConsumerState<FocusPage> {
               padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
               child: Column(
                 children: [
-                  const Text('FOCUS SESSION',
-                      style: TextStyle(fontSize: 10, letterSpacing: 1.4, color: AppColors.primary)),
+                  Text('FOCUS SESSION',
+                      style: TextStyle(fontSize: 10, letterSpacing: 1.4, color: context.palette.accent)),
                   const SizedBox(height: 16),
                   Text('$minutes:$seconds',
                       style: const TextStyle(fontSize: 64, fontWeight: FontWeight.w300, letterSpacing: -2)),
@@ -162,7 +162,7 @@ class _FocusPageState extends ConsumerState<FocusPage> {
                 child: Text("Today's sessions", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               ),
               Text('${totalMinutes ~/ 60}h ${totalMinutes % 60}m',
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                  style: TextStyle(fontWeight: FontWeight.w700, color: context.palette.accent)),
             ],
           ),
           const SizedBox(height: 10),

@@ -415,7 +415,7 @@ class _DropZoneState extends State<_DropZone> {
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: _hovering ? AppColors.primary : palette.textSecondary,
+                          color: _hovering ? context.palette.accent : palette.textSecondary,
                         ),
                       ),
                       if (widget.sublabel != null && !_hovering) ...[
@@ -531,7 +531,7 @@ class _FilterButton extends ConsumerWidget {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.filter_list,
-              size: 16, color: selectedId == null ? palette.textSecondary : AppColors.primary),
+              size: 16, color: selectedId == null ? palette.textSecondary : context.palette.accent),
           const SizedBox(width: 6),
           // Showing the active category, not just "Filter", so it is obvious
           // why cards are missing from the board.
@@ -539,7 +539,7 @@ class _FilterButton extends ConsumerWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
-                color: selectedId == null ? palette.textPrimary : AppColors.primary,
+                color: selectedId == null ? palette.textPrimary : context.palette.accent,
               )),
         ]),
       ),
@@ -557,7 +557,7 @@ class _FilterButton extends ConsumerWidget {
           ],
           Expanded(child: Text(label)),
           if (value == selectedId)
-            const Icon(Icons.check, size: 16, color: AppColors.primary),
+            Icon(Icons.check, size: 16, color: AppColors.primary),
         ],
       ),
     );

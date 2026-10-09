@@ -34,17 +34,17 @@ class InboxPage extends ConsumerWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.auto_awesome, size: 18, color: AppColors.primary),
+              Icon(Icons.auto_awesome, size: 18, color: context.palette.accent),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Clear your mind',
-                        style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                        style: TextStyle(fontWeight: FontWeight.w700, color: context.palette.accent)),
                     SizedBox(height: 2),
                     Text('Capture it now, organize it later.',
-                        style: TextStyle(fontSize: 12.5, color: AppColors.primary)),
+                        style: TextStyle(fontSize: 12.5, color: context.palette.accent)),
                   ],
                 ),
               ),

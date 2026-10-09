@@ -219,7 +219,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final color = selected ? AppColors.primary : palette.textSecondary;
+    final color = selected ? context.palette.accent : palette.textSecondary;
 
     return Semantics(
       button: true,
@@ -506,13 +506,13 @@ class _SidebarItem extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 19, color: selected ? AppColors.primary : context.palette.textSecondary),
+              Icon(icon, size: 19, color: selected ? context.palette.accent : context.palette.textSecondary),
               const SizedBox(width: 12),
               Text(label,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: selected ? AppColors.primary : null,
+                    color: selected ? context.palette.accent : null,
                   )),
             ],
           ),

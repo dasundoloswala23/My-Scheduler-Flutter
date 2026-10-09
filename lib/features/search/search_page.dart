@@ -376,7 +376,7 @@ class _Chip extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
-              color: active ? AppColors.primary : context.palette.textSecondary,
+              color: active ? context.palette.accent : context.palette.textSecondary,
             ),
           ),
         ),
@@ -403,7 +403,7 @@ class _HitTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: Icon(_icon, size: 20, color: AppColors.primary),
+        leading: Icon(_icon, size: 20, color: context.palette.accent),
         title: Text(hit.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: hit.subtitle.isEmpty
             ? null
