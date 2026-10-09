@@ -55,7 +55,7 @@ try {
   const routes = ["/", "/today", "/inbox", "/boards", "/calendar", "/search", "/categories", "/notes", "/reminders", "/holidays", "/focus", "/eisenhower", "/statistics", "/settings", "/flows"];
   for (const r of routes) {
     const res = await page.goto(BASE + r);
-    await settle(1200);
+    await until(async () => !page.url().includes("/login") && (await page.locator("main, [class*=px-5]").first().isVisible()), 15000);
     const ok = res.status() === 200 && !page.url().includes("/login") && (await page.locator("main, [class*=px-5]").first().isVisible());
     check(`direct load of ${r}`, ok, `HTTP ${res.status()} -> ${new URL(page.url()).pathname}`);
   }
@@ -70,7 +70,8 @@ try {
   await settle(2500);
   await shot("board");
 
-  const columnNames = await page.locator("section h3").allInnerTexts();
+  let columnNames = [];
+  await until(async () => { columnNames = await page.locator("section h3").allInnerTexts(); return columnNames.includes("Complete"); }, 20000);
   check("board has a Complete list and no Done list", columnNames.includes("Complete") && !columnNames.includes("Done"), columnNames.join(" | "));
 
   // create a card in the Todo list through the inline composer
