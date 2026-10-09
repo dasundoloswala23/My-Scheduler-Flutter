@@ -50,6 +50,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "455014733188-gqu5df3864vkcput5grtgggjr3g563ro.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myplanscheduler.app",
+            "certificate_hash": "e6af2f946ffe53318e91c51e9b6424c85ce83e2e"
+          }
+        },
+        {
           "client_id": "455014733188-v6cpc9ipqll9qnacparh7eu9tlef2g55.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
