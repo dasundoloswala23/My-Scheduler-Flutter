@@ -11,9 +11,14 @@ class FakeAuth extends Fake implements AuthService {
   final calls = <String>[];
   Completer<void>? hold;
   Object? failWith;
+  bool googleEnabled = true;
+  bool appleEnabled = false;
 
   @override
-  bool get supportsAppleSignIn => false;
+  bool get supportsAppleSignIn => appleEnabled;
+
+  @override
+  bool get supportsGoogleSignIn => googleEnabled;
 
   Future<void> _go(String name) async {
     calls.add(name);
@@ -174,6 +179,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(auth.calls, ['reset']);
     expect(find.text('Password reset email sent.'), findsOneWidget);
+  });
+
+  // A provider that cannot complete is worse than one that is absent: on a
+  // platform with no OAuth client configured the button must not be offered.
+  testWidgets('an unconfigured Google provider is not offered', (tester) async {
+    await pump(tester, auth: FakeAuth()..googleEnabled = false);
+    expect(find.text('Continue with Google'), findsNothing);
+    expect(find.text('Sign in'), findsWidgets, reason: 'email sign-in still works');
+  });
+
+  testWidgets('the "or" rule is dropped when no provider follows it', (tester) async {
+    await pump(tester, auth: FakeAuth()..googleEnabled = false);
+    expect(find.text('or'), findsNothing);
+  });
+
+  testWidgets('the "or" rule stays when a provider remains', (tester) async {
+    await pump(tester, auth: FakeAuth()..googleEnabled = false..appleEnabled = true);
+    expect(find.text('or'), findsOneWidget);
+    expect(find.text('Continue with Apple'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsNothing);
   });
 
   for (final b in Brightness.values) {

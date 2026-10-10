@@ -31,6 +31,13 @@ class AuthService {
   static const _desktopClientId = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_ID');
   static const _desktopClientSecret = String.fromEnvironment('GOOGLE_DESKTOP_CLIENT_SECRET');
 
+  /// The iOS/macOS OAuth client. Google sign-in on Apple platforms also needs
+  /// `GIDClientID` and the reversed-client-ID URL scheme in Info.plist; until
+  /// both exist the button is hidden rather than shown and throwing on tap.
+  /// Supply at build time to re-enable:
+  /// `--dart-define=GOOGLE_IOS_CLIENT_ID=...`
+  static const _appleClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+
   bool get _usesDesktopGoogle => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
   Stream<User?> get authChanges => _auth.authStateChanges();
@@ -48,11 +55,34 @@ class AuthService {
           defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS);
 
+  /// Whether to offer Google at all. A provider that cannot complete is worse
+  /// than one that is absent, so each platform is gated on its own config:
+  /// Android ships its client in google-services.json, Windows needs the
+  /// desktop OAuth pair, and Apple platforms need [_appleClientId].
+  bool get supportsGoogleSignIn {
+    if (kIsWeb) return true;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => true,
+      TargetPlatform.windows => _desktopGoogle.isConfigured,
+      TargetPlatform.iOS || TargetPlatform.macOS => _appleClientId.isNotEmpty,
+      _ => false,
+    };
+  }
+
   Future<void> signInWithGoogle() async {
     if (_usesNativeGoogle) {
-      await GoogleSignIn.instance.initialize();
+      // Android reads its client from google-services.json; Apple platforms
+      // need it passed explicitly (or set as GIDClientID in Info.plist).
+      await GoogleSignIn.instance.initialize(
+        clientId: _appleClientId.isEmpty ? null : _appleClientId,
+      );
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
+      if (idToken == null) {
+        // Firebase cannot build a credential without it, and the failure it
+        // raises on its own says nothing useful.
+        throw StateError('Google did not return an ID token.');
+      }
       final credential = GoogleAuthProvider.credential(idToken: idToken);
       await _auth.signInWithCredential(credential);
       return;
@@ -129,6 +159,19 @@ class AuthService {
 /// Used by the UI to show a friendly message for [FirebaseAuthException].
 String authErrorMessage(Object error) {
   if (error is DesktopGoogleAuthException) return error.message;
+  // Native Google (iOS/Android) reports cancellation as an exception of its
+  // own, not as a FirebaseAuthException, so it needs its own arm or a cancelled
+  // sign-in reads as a failure.
+  if (error is GoogleSignInException) {
+    return switch (error.code) {
+      GoogleSignInExceptionCode.canceled => 'Sign-in was cancelled.',
+      GoogleSignInExceptionCode.interrupted ||
+      GoogleSignInExceptionCode.providerConfigurationError =>
+        'Google sign-in is unavailable right now. Please try again.',
+      _ => 'Google sign-in failed. Please try again.',
+    };
+  }
+  if (error is StateError) return 'Google sign-in failed. Please try again.';
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-email':

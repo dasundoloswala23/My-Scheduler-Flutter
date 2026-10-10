@@ -185,25 +185,29 @@ class _SignInPageState extends State<SignInPage> {
           busy: _busy,
           onPressed: _submitEmail,
         ),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(child: Divider(color: palette.divider)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text('or', style: TextStyle(color: palette.textSecondary, fontSize: 13)),
-            ),
-            Expanded(child: Divider(color: palette.divider)),
-          ],
-        ),
-        const SizedBox(height: 20),
-        ProviderButton(
-          icon: const Icon(Icons.g_mobiledata, size: 28),
-          label: 'Continue with Google',
-          onPressed: _busy ? null : () => _run(_auth.signInWithGoogle),
-        ),
+        // The "or" rule only earns its place when a provider follows it.
+        if (_auth.supportsGoogleSignIn || _auth.supportsAppleSignIn) ...[
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: Divider(color: palette.divider)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('or', style: TextStyle(color: palette.textSecondary, fontSize: 13)),
+              ),
+              Expanded(child: Divider(color: palette.divider)),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+        if (_auth.supportsGoogleSignIn)
+          ProviderButton(
+            icon: const Icon(Icons.g_mobiledata, size: 28),
+            label: 'Continue with Google',
+            onPressed: _busy ? null : () => _run(_auth.signInWithGoogle),
+          ),
         if (_auth.supportsAppleSignIn) ...[
-          const SizedBox(height: 12),
+          if (_auth.supportsGoogleSignIn) const SizedBox(height: 12),
           ProviderButton(
             icon: const Icon(Icons.apple, size: 22),
             label: 'Continue with Apple',
